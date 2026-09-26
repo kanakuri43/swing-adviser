@@ -40,11 +40,11 @@
 - [x] 分割・併合時の株数・取得単価・損切/利確ラインの換算（元約定=監査原票は変更しない、乗除算のみでハッシュ照合はしない）— Phase 1の`Position.ApplySplit`で完了済み
 
 ## Phase 4: Infrastructure — 市場データ取得
-- [ ] Yahoo Finance chart API 呼び出し（`query1.finance.yahoo.com/v8/finance/chart/{code}.T`）
-- [ ] レート制御の実装
-- [ ] JPX上場銘柄一覧CSV取込
-- [ ] 流動性フィルタ（出来高・時価総額）で東証国内普通株をスキャン対象に絞込み
-- [ ] 分割・併合調整（単純乗除算）
+- [x] Yahoo Finance chart API 呼び出し（`query1.finance.yahoo.com/v8/finance/chart/{code}.T`）— `events.splits`から分割を直接取得。配当(`events=div`)は取得しない
+- [x] レート制御の実装（`RateLimiter`、`MarketData.YahooFinance.MaxRequestsPerSecond`から算出）
+- [x] JPX上場銘柄一覧取込（Excel/CSV/TSV両対応。東証国内普通株かつプライム/スタンダード/グロースのみに絞ってパーサー段階で除外）
+- [x] 流動性フィルタ（20営業日平均売買代金=終値×出来高、`LiquidityFilterOptions`の閾値で判定。CLAUDE.md記載を時価総額→売買代金に変更済み、Phase0参照）
+- [x] 分割・併合調整（単純乗除算）— Yahoo応答のnumerator/denominatorからratioを算出し、Phase 1の`DailyBar.ApplySplit(ratio)`とそのまま整合。保存済みバーへの適用タイミング（いつUPDATEするか）はApplication層(Phase 7)の責務として持ち越し
 
 ## Phase 5: Infrastructure — 永続化
 - [ ] EF Core DbContext・SQLite接続

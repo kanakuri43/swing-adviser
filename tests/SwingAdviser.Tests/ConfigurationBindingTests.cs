@@ -46,6 +46,7 @@ public class ConfigurationBindingTests
         Assert.NotNull(options);
         Assert.Equal(5, options!.YahooFinance.MaxRequestsPerSecond);
         Assert.StartsWith("https://query1.finance.yahoo.com", options.YahooFinance.BaseUrl);
+        Assert.StartsWith("https://www.jpx.co.jp", options.Jpx.ListedIssuesUrl);
     }
 
     [Fact]
