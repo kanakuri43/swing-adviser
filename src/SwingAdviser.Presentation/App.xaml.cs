@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Threading;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SwingAdviser.Domain.Strategy;
@@ -40,9 +41,17 @@ public partial class App : System.Windows.Application
                 ?? throw new InvalidOperationException("appsettings.json に LiquidityFilter セクションがありません。"));
             services.AddSingleton(configuration.GetSection("CodexCli").Get<CodexCliOptions>()
                 ?? throw new InvalidOperationException("appsettings.json に CodexCli セクションがありません。"));
+            services.AddDbContext<SwingAdviserDbContext>(o => o
+                .UseSqlite($"Data Source={databasePath}")
+                .UseSnakeCaseNamingConvention());
             services.AddTransient<MainWindow>();
 
             _serviceProvider = services.BuildServiceProvider();
+
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                scope.ServiceProvider.GetRequiredService<SwingAdviserDbContext>().Database.Migrate();
+            }
 
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();

@@ -47,10 +47,10 @@
 - [x] 分割・併合調整（単純乗除算）— Yahoo応答のnumerator/denominatorからratioを算出し、Phase 1の`DailyBar.ApplySplit(ratio)`とそのまま整合。保存済みバーへの適用タイミング（いつUPDATEするか）はApplication層(Phase 7)の責務として持ち越し
 
 ## Phase 5: Infrastructure — 永続化
-- [ ] EF Core DbContext・SQLite接続
-- [ ] decimal（価格・数量・比率）を SQLite REAL でなく TEXT に保存する value converter
-- [ ] 命名規約適用（テーブル名複数形スネークケース、主キー`<単数形>_id`、瞬間`_at_utc`、暦日`_date`）
-- [ ] 単一の `InitialCreate` マイグレーションのみ作成（要件固まるまで追加マイグレーションを積まない）
+- [x] EF Core DbContext・SQLite接続（`SwingAdviserDbContext`、DIに登録し起動時に`Database.Migrate()`）
+- [x] decimal（価格・数量・比率）を SQLite REAL でなく TEXT に保存する value converter（`ConfigureConventions`で全decimalプロパティに一括適用）
+- [x] 命名規約適用（テーブル名複数形スネークケース、主キー`<単数形>_id`、瞬間`_at_utc`、暦日`_date`）— `EFCore.NamingConventions`のsnake_case変換＋PKは各Configurationで明示的に列名指定。列挙型も判定根拠が読めるようTEXT保存にした（CLAUDE.md未記載の追加判断）
+- [x] 単一の `InitialCreate` マイグレーションのみ作成（要件固まるまで追加マイグレーションを積まない）— `dotnet ef migrations list`で1件のみ確認済み
 
 ## Phase 6: Infrastructure — Codex CLI連携
 - [ ] `CodexCliExecutor`（外部プロセス実行、timeout/実行パス/並列数は設定値化）
