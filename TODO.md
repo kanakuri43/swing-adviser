@@ -13,13 +13,14 @@
 - [x] DB配置: `AppContext.BaseDirectory` 基準で `swing-adviser.db` 固定、書込不可なら起動時エラー（暗黙フォールバック禁止）
 
 ## Phase 1: Domain — エンティティ
-- [ ] 銘柄マスタ（コード・銘柄名・市場区分・有効フラグ）
-- [ ] 日足（銘柄+取引日で一意制約）
-- [ ] 分析結果/候補（判定日ごとに1行追記、使用した指標値・戦略パラメータをその行にそのまま保存。manifest/hashによる別テーブル凍結はしない）
-- [ ] ポジション（銘柄・方向・状態・メモ）
-- [ ] 約定明細（1ポジションに対し複数の新規/決済を紐付け、信用返済期限を約定ごとに保持）
-- [ ] AI評価（状態はPending/Running/Succeeded/Failedの4状態のみ。verdict/confidence/summary/好材料/リスク要因/無効化条件/参照URL一覧）
-- [ ] revision/supersedeチェーンにしない。訂正はUPDATE＋変更理由の追記欄のみ
+- [x] 銘柄マスタ（コード・銘柄名・市場区分・有効フラグ）
+- [x] 日足（銘柄+取引日で一意制約。EF Coreでの一意インデックス設定自体はPhase 5）
+- [x] 分析結果/候補（判定日ごとに1行追記、使用した指標値・戦略パラメータをその行にそのまま保存。manifest/hashによる別テーブル凍結はしない）
+  - 候補化スキャンと保有再評価は判断内容が別物のため、`CandidateEvaluation`（新規候補）と`HoldingEvaluation`（保有ポジション再評価）の2エンティティに分けた
+- [x] ポジション（銘柄・方向・状態・メモ）
+- [x] 約定明細（1ポジションに対し複数の新規/決済を紐付け、信用返済期限を約定ごとに保持）
+- [x] AI評価（状態はPending/Running/Succeeded/Failedの4状態のみ。verdict/confidence/summary/好材料/リスク要因/無効化条件/参照URL一覧）
+- [x] revision/supersedeチェーンにしない。訂正はUPDATE＋変更理由の追記欄のみ（`Execution.Correct`/`CorrectionLog`）
 
 ## Phase 2: Domain — テクニカル分析エンジン
 - [ ] MACD・EMA(20/100)・ATR14(Wilder)・出来高倍率(20日平均)の計算関数
