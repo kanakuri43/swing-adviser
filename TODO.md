@@ -32,12 +32,12 @@
 - [x] terraの `TechnicalAnalysisEngine.cs` は指標計算式の参照のみに使う。条件1/条件2構造はそのまま移植しない
 
 ## Phase 3: Domain — リスク評価器（保有再評価）
-- [ ] 建玉時ATR14固定の損切ライン（以後の日次再計算で上書きしない）
-- [ ] 1.5R到達時の50%一部利確候補判定
-- [ ] Exit判定（MACDデッドクロス or 終値のEMA20割れ、Long/Short対称）
-- [ ] 時間ストップ（建玉から20営業日）
-- [ ] 優先順位ロジック（損切 > 時間ストップ > Exit > 利確 > Hold）
-- [ ] 分割・併合時の株数・取得単価・損切/利確ラインの換算（元約定=監査原票は変更しない、乗除算のみでハッシュ照合はしない）
+- [x] 建玉時ATR14固定の損切ライン（以後の日次再計算で上書きしない）— Phase 1の`Position`で完了済み
+- [x] 1.5R到達時の50%一部利確候補判定（`HoldingRiskEvaluator`。一部利確済みかは`Position.Executions`のClose約定有無から導出し、専用フラグは持たない）
+- [x] Exit判定（MACDデッドクロス or 終値のEMA20割れ、Long/Short対称）— 状態ベース判定（クロス当日限定にしない）。`sign`正規化でCandidateScannerと同様に共通コード化
+- [x] 時間ストップ（建玉から20営業日）— barsのインデックス差で営業日ベースに計算
+- [x] 優先順位ロジック（損切 > 時間ストップ > Exit > 利確 > Hold）— if-elseの直列評価
+- [x] 分割・併合時の株数・取得単価・損切/利確ラインの換算（元約定=監査原票は変更しない、乗除算のみでハッシュ照合はしない）— Phase 1の`Position.ApplySplit`で完了済み
 
 ## Phase 4: Infrastructure — 市場データ取得
 - [ ] Yahoo Finance chart API 呼び出し（`query1.finance.yahoo.com/v8/finance/chart/{code}.T`）

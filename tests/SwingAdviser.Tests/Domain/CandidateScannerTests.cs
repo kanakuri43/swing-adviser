@@ -9,47 +9,7 @@ public class CandidateScannerTests
 {
     private static readonly DateTime NowUtc = new(2026, 1, 5, 0, 0, 0, DateTimeKind.Utc);
 
-    private static StrategyParameters TestStrategyParameters() => new()
-    {
-        Indicators = new IndicatorParameters
-        {
-            MacdFastPeriod = 16,
-            MacdSlowPeriod = 34,
-            MacdSignalPeriod = 9,
-            EmaShortPeriod = 20,
-            EmaMediumPeriod = 100,
-            AtrPeriod = 14,
-            VolumeAveragePeriod = 20,
-        },
-        Gates = new GateParameters
-        {
-            MacdCrossMaxAgeDays = 3,
-            TrendSlopeLookbackDays = 20,
-            OverextendedAtrMultiple = 2.0m,
-            MarketRegimeSymbol = "1306",
-        },
-        Scoring = new ScoringParameters
-        {
-            MacdFreshnessPoints = 20,
-            MacdPositionPoints = 15,
-            MacdMomentumPoints = 15,
-            TrendStrengthPoints = 20,
-            VolumePoints = 15,
-            MarketRegimePoints = 15,
-            TrendStrengthFullScoreAtrMultiple = 1.0m,
-            MomentumFullScoreAtrMultiple = 0.3m,
-            VolumeRatioZeroScore = 1.0m,
-            VolumeRatioFullScore = 2.0m,
-            HighConfidenceThreshold = 70,
-            MediumConfidenceThreshold = 50,
-        },
-        Risk = new RiskParameters(),
-        AnalysisWindow = new AnalysisWindowParameters
-        {
-            BarsToFetch = 250,
-            MinimumRequiredBars = 200,
-        },
-    };
+    private static StrategyParameters TestStrategyParameters() => TestFixtures.DefaultStrategyParameters();
 
     /// <summary>緩やかな上昇トレンド→押し目→反発のV字を作る。反発の途中でMACDのゴールデンクロスが起きる想定。</summary>
     private static List<DailyBar> BuildTrendWithPullbackAndRecovery(string stockCode)
@@ -78,14 +38,6 @@ public class CandidateScannerTests
         }
 
         return bars;
-    }
-
-    /// <summary>価格軸をaxisで点対称に反転する（High/Lowも入れ替える）。出来高は不変。</summary>
-    private static List<DailyBar> Reflect(IReadOnlyList<DailyBar> bars, string stockCode, decimal axis)
-    {
-        return bars
-            .Select(b => new DailyBar(stockCode, b.TradeDate, axis - b.Open, axis - b.Low, axis - b.High, axis - b.Close, b.Volume))
-            .ToList();
     }
 
     private static int FindFreshGoldenCrossIndex(IReadOnlyList<DailyBar> bars, StrategyParameters parameters)
@@ -140,8 +92,8 @@ public class CandidateScannerTests
         var longRegime = regimeBars.Take(crossIndex + 1).ToList();
 
         const decimal axis = 100_000m;
-        var shortBars = Reflect(longBars, "7203", axis);
-        var shortRegime = Reflect(longRegime, "1306", axis);
+        var shortBars = TestFixtures.Reflect(longBars, "7203", axis);
+        var shortRegime = TestFixtures.Reflect(longRegime, "1306", axis);
 
         var scanner = new CandidateScanner(parameters);
         var longCandidate = Assert.Single(scanner.Evaluate("7203", longBars, longRegime, NowUtc));
