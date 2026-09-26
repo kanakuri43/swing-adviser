@@ -23,12 +23,13 @@
 - [x] revision/supersedeチェーンにしない。訂正はUPDATE＋変更理由の追記欄のみ（`Execution.Correct`/`CorrectionLog`）
 
 ## Phase 2: Domain — テクニカル分析エンジン
-- [ ] MACD・EMA(20/100)・ATR14(Wilder)・出来高倍率(20日平均)の計算関数
-- [ ] TOPIX連動ETF(1306.T)によるMACD地合い判定
-- [ ] Long候補化ゲート一式（MACDトリガー・MACD勢い・トレンド環境・過熱除外）
-- [ ] Short候補化ゲート（Longの完全対称、共通コードで実装し重複を避ける）
-- [ ] スコアリング（0-100、下駄なし加点、MACD系配点50点）とHigh/Medium/Lowラベル
-- [ ] terraの `TechnicalAnalysisEngine.cs` は指標計算式の参照のみに使う。条件1/条件2構造はそのまま移植しない
+- [x] MACD・EMA(20/100)・ATR14(Wilder)・出来高倍率(20日平均)の計算関数（`TechnicalIndicators`）
+- [x] TOPIX連動ETF(1306.T)によるMACD地合い判定（ゲートではなくスコア専用。地合い不一致でも候補化はする）
+- [x] Long候補化ゲート一式（MACDトリガー・MACD勢い・トレンド環境・過熱除外）
+- [x] Short候補化ゲート（Longの完全対称、`sign`正規化による共通コードで実装。重複コードなし）
+- [x] スコアリング（0-100、下駄なし加点、MACD系配点50点）とHigh/Medium/Lowラベル
+  - CLAUDE.md未確定だったMACD勢いスコアの満点閾値は`MomentumFullScoreAtrMultiple`(仮値0.3)として追加
+- [x] terraの `TechnicalAnalysisEngine.cs` は指標計算式の参照のみに使う。条件1/条件2構造はそのまま移植しない
 
 ## Phase 3: Domain — リスク評価器（保有再評価）
 - [ ] 建玉時ATR14固定の損切ライン（以後の日次再計算で上書きしない）

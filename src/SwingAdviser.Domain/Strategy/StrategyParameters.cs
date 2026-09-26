@@ -37,6 +37,7 @@ public sealed class ScoringParameters
     public int VolumePoints { get; init; }
     public int MarketRegimePoints { get; init; }
     public decimal TrendStrengthFullScoreAtrMultiple { get; init; }
+    public decimal MomentumFullScoreAtrMultiple { get; init; }
     public decimal VolumeRatioZeroScore { get; init; }
     public decimal VolumeRatioFullScore { get; init; }
     public int HighConfidenceThreshold { get; init; }

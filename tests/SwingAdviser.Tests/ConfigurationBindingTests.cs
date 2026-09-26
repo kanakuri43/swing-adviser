@@ -30,6 +30,7 @@ public class ConfigurationBindingTests
         Assert.Equal(14, parameters.Indicators.AtrPeriod);
         Assert.Equal(3, parameters.Gates.MacdCrossMaxAgeDays);
         Assert.Equal("1306", parameters.Gates.MarketRegimeSymbol);
+        Assert.Equal(0.3m, parameters.Scoring.MomentumFullScoreAtrMultiple);
         Assert.Equal(70, parameters.Scoring.HighConfidenceThreshold);
         Assert.Equal(3.0m, parameters.Risk.LongStopLossAtrMultiple);
         Assert.Equal(250, parameters.AnalysisWindow.BarsToFetch);
