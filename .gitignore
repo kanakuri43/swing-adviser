@@ -1,0 +1,16 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+*.db
+*.db-shm
+*.db-wal
+
+appsettings.*.json
+!appsettings.json
+*secrets*.json
+
+.env
+.env.*

@@ -6,11 +6,11 @@
 各フェーズ着手前に「意図的に作らないもの」（revision/manifest凍結、単位ハッシュ検証、MarginCostLedger、多段fail-closed分類、3層Lot構造）を作っていないか確認する。
 
 ## Phase 0: プロジェクト基盤
-- [ ] ソリューション作成、4プロジェクト分割（Domain / Application / Infrastructure / Presentation）+ テストプロジェクト
-- [ ] Domain に外部依存を持ち込まない（NuGet追加はApplication以降のみ）
-- [ ] NuGet: EF Core Sqlite、MahApps.Metro
-- [ ] `appsettings.json` 雛形作成（StrategyParameters、Yahoo取得のレート制御値、Codex CLIの実行パス/timeout/並列数、流動性フィルタ閾値）
-- [ ] DB配置: `AppContext.BaseDirectory` 基準で `swing-adviser.db` 固定、書込不可なら起動時エラー（暗黙フォールバック禁止）
+- [x] ソリューション作成、4プロジェクト分割（Domain / Application / Infrastructure / Presentation）+ テストプロジェクト
+- [x] Domain に外部依存を持ち込まない（NuGet追加はApplication以降のみ）
+- [x] NuGet: EF Core Sqlite、MahApps.Metro
+- [x] `appsettings.json` 雛形作成（StrategyParameters、Yahoo取得のレート制御値、Codex CLIの実行パス/timeout/並列数、流動性フィルタ閾値）
+- [x] DB配置: `AppContext.BaseDirectory` 基準で `swing-adviser.db` 固定、書込不可なら起動時エラー（暗黙フォールバック禁止）
 
 ## Phase 1: Domain — エンティティ
 - [ ] 銘柄マスタ（コード・銘柄名・市場区分・有効フラグ）

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SwingAdviser.Application/SwingAdviser.Application.csproj" />
+    <Project Path="src/SwingAdviser.Domain/SwingAdviser.Domain.csproj" />
+    <Project Path="src/SwingAdviser.Infrastructure/SwingAdviser.Infrastructure.csproj" />
+    <Project Path="src/SwingAdviser.Presentation/SwingAdviser.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SwingAdviser.Tests/SwingAdviser.Tests.csproj" />
+  </Folder>
+</Solution>
