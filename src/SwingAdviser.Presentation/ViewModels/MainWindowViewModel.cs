@@ -19,6 +19,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly CandidateOverviewReader _candidateOverviewReader;
     private readonly HoldingOverviewReader _holdingOverviewReader;
     private readonly ExecutionOverviewReader _executionOverviewReader;
+    private readonly SemaphoreSlim _reloadGate = new(1, 1);
 
     private string _statusMessage = "起動しました。「日次更新」で株価取得・候補抽出・保有再評価を実行できます。";
     private string _dailyUpdateStageText = "未実行";
@@ -90,20 +91,31 @@ public sealed class MainWindowViewModel : ObservableObject
         await ReloadDisplayDataAsync();
     }
 
-    /// <summary>候補/保有/履歴タブの表示データを読み直す。保存を伴う操作（日次更新・約定入力・AI評価）の後は必ずこれを呼ぶ。</summary>
+    /// <summary>候補/保有/履歴タブの表示データを読み直す。保存を伴う操作（日次更新・約定入力・AI評価）の後は必ずこれを呼ぶ。
+    /// 選択中の候補は銘柄・方向で復元する。複数の非同期処理（例: 複数行の同時AI評価）から同時に呼ばれても
+    /// ObservableCollectionへのClear/Addが競合しないよう、セマフォで直列化する。</summary>
     public async Task ReloadDisplayDataAsync()
     {
+        await _reloadGate.WaitAsync();
         try
         {
             var candidates = await _candidateOverviewReader.GetLatestAsync();
             var positions = await _holdingOverviewReader.GetOpenPositionsAsync();
             var executions = await _executionOverviewReader.GetAllAsync();
 
+            var selectedKey = SelectedCandidate is { } selected
+                ? (selected.StockCode, selected.Overview.Direction)
+                : ((string StockCode, TradeDirection Direction)?)null;
+
             Candidates.Clear();
             foreach (var overview in candidates)
             {
                 Candidates.Add(new CandidateRow(overview, RunAiEvaluationForRowAsync));
             }
+
+            SelectedCandidate = selectedKey is { } key
+                ? Candidates.FirstOrDefault(c => c.StockCode == key.StockCode && c.Overview.Direction == key.Direction)
+                : null;
 
             Positions.Clear();
             foreach (var overview in positions)
@@ -121,13 +133,18 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             StatusMessage = $"表示データの読み込みに失敗しました: {exception.Message}";
         }
+        finally
+        {
+            _reloadGate.Release();
+        }
     }
 
     private async Task RunAiEvaluationForRowAsync(CandidateRow row, CancellationToken cancellationToken)
     {
         try
         {
-            var target = new AiEvaluationTarget(row.StockCode, row.Overview.Direction);
+            var target = new AiEvaluationTarget(
+                row.StockCode, row.Overview.Direction, row.StockName, row.Close, row.Overview.EvaluationDate, row.Score, row.Overview.Confidence);
             await _aiEvaluationService.RunAsync([target], cancellationToken: cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
@@ -147,15 +164,39 @@ public sealed class MainWindowViewModel : ObservableObject
         DailyUpdateProgressPercent = 0;
         IsDailyUpdateProgressIndeterminate = true;
 
+        DailyUpdateResult? result = null;
         try
         {
             var progress = new Progress<DailyUpdateProgress>(OnDailyUpdateProgress);
-            var result = await _dailyUpdateService.RunAsync(progress, cancellationToken);
-            StatusMessage = BuildCompletionMessage(result);
+            result = await _dailyUpdateService.RunAsync(progress, cancellationToken);
+            await ReloadDisplayDataAsync();
+
+            var candidates = await _candidateOverviewReader.GetLatestAsync(cancellationToken);
+            var highConfidenceCount = candidates.Count(c => c.Confidence == ConfidenceLevel.High);
+            var autoTargets = AiEvaluationService.SelectAutoTargets(candidates);
+            var autoSkippedCount = highConfidenceCount - autoTargets.Count;
+
+            AiEvaluationRunResult? autoAiResult = null;
+            if (autoTargets.Count > 0)
+            {
+                IsDailyUpdateProgressIndeterminate = false;
+                DailyUpdateProgressPercent = 0;
+                DailyUpdateStageText = $"AI総合評価（High候補） 0/{autoTargets.Count}";
+                var aiProgress = new Progress<AiEvaluationProgress>(p =>
+                {
+                    DailyUpdateProgressPercent = 100.0 * p.Completed / p.Total;
+                    DailyUpdateStageText = $"AI総合評価（High候補） {p.Completed}/{p.Total}";
+                });
+                autoAiResult = await _aiEvaluationService.RunAsync(autoTargets, aiProgress, cancellationToken);
+            }
+
+            StatusMessage = BuildCompletionMessage(result, autoAiResult, autoSkippedCount);
         }
         catch (OperationCanceledException)
         {
-            StatusMessage = "日次更新を中止しました。完了済みの銘柄までの結果は保存されています。";
+            StatusMessage = result is null
+                ? "日次更新を中止しました。完了済みの銘柄までの結果は保存されています。"
+                : "日次更新は完了しましたが、AI総合評価（High候補）は中止しました。";
         }
         catch (Exception exception)
         {
@@ -183,10 +224,18 @@ public sealed class MainWindowViewModel : ObservableObject
         StatusMessage = $"日次更新で予期しないエラーが発生しました: {exception.Message}";
     }
 
-    private static string BuildCompletionMessage(DailyUpdateResult result)
+    private static string BuildCompletionMessage(DailyUpdateResult result, AiEvaluationRunResult? autoAiResult, int autoAiSkippedCount)
     {
         var failureText = result.Failures.Count > 0 ? $"（取得失敗{result.Failures.Count}件）" : string.Empty;
-        return $"日次更新が完了しました。評価日 {result.EvaluationDate:yyyy-MM-dd}、日足同期 {result.SyncedCount}件{failureText}、" +
+        var baseMessage = $"日次更新が完了しました。評価日 {result.EvaluationDate:yyyy-MM-dd}、日足同期 {result.SyncedCount}件{failureText}、" +
                $"候補 {result.CandidateCount}件、保有再評価 {result.HoldingEvaluationCount}件。";
+
+        if (autoAiResult is null)
+        {
+            return baseMessage;
+        }
+
+        var skippedText = autoAiSkippedCount > 0 ? $"・スキップ{autoAiSkippedCount}件" : string.Empty;
+        return $"{baseMessage} AI総合評価（High候補）成功{autoAiResult.SucceededCount}件・失敗{autoAiResult.FailedCount}件{skippedText}。";
     }
 }

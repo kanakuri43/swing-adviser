@@ -6,7 +6,10 @@ using SwingAdviser.Application.Positions;
 using SwingAdviser.Application.Risk;
 using SwingAdviser.Domain.Ai;
 using SwingAdviser.Domain.Common;
+using SwingAdviser.Domain.MarketData;
 using SwingAdviser.Domain.Positions;
+using SwingAdviser.Domain.Stocks;
+using SwingAdviser.Infrastructure.Analysis;
 using SwingAdviser.Infrastructure.Configuration;
 using SwingAdviser.Infrastructure.MarketData;
 using SwingAdviser.Presentation.ViewModels;
@@ -232,4 +235,149 @@ public class MainWindowViewModelTests
         Assert.Equal(AiEvaluationStatus.Succeeded, reloaded.Overview.AiStatus);
         Assert.Equal("良好。", reloaded.AiSummary);
     }
+
+    [Fact]
+    public async Task CandidateRow_RunAiEvaluationCommand_DisabledWhileRunningAndRestoredAfterOtherRowReload()
+    {
+        using var contextFactory = new SqliteInMemoryContextFactory();
+        var timeProvider = new FixedTimeProvider(FixedNow);
+
+        await using (var context = contextFactory.CreateDbContext())
+        {
+            context.CandidateEvaluations.Add(BuildCandidateEvaluation("1111"));
+            context.CandidateEvaluations.Add(BuildCandidateEvaluation("2222"));
+            await context.SaveChangesAsync();
+        }
+
+        var gate = new TaskCompletionSource();
+        var executor = new FakeAiCliExecutor(async (prompt, ct) =>
+        {
+            if (prompt.Contains("銘柄コード: 1111"))
+            {
+                await gate.Task;
+            }
+
+            return new AiCliResult("""{ "verdict": "Bullish", "confidence": "High", "summary": "ok" }""", string.Empty, 0, AiCliCompletion.Completed);
+        });
+        var aiEvaluationService = new AiEvaluationService(executor, contextFactory, timeProvider);
+        var viewModel = BuildViewModel(contextFactory, timeProvider, aiEvaluationService);
+
+        await viewModel.ReloadDisplayDataAsync();
+        var row1 = viewModel.Candidates.Single(c => c.StockCode == "1111");
+        var row2 = viewModel.Candidates.Single(c => c.StockCode == "2222");
+
+        var runTask = row1.RunAiEvaluationCommand.ExecuteAsync();
+        await row2.RunAiEvaluationCommand.ExecuteAsync();
+
+        var reloadedRow1 = viewModel.Candidates.Single(c => c.StockCode == "1111");
+        Assert.False(reloadedRow1.RunAiEvaluationCommand.CanExecute(null));
+
+        gate.SetResult();
+        await runTask;
+
+        var finalRow1 = viewModel.Candidates.Single(c => c.StockCode == "1111");
+        Assert.True(finalRow1.RunAiEvaluationCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task ReloadDisplayDataAsync_PreservesSelectedCandidateAcrossReload()
+    {
+        using var contextFactory = new SqliteInMemoryContextFactory();
+        var timeProvider = new FixedTimeProvider(FixedNow);
+
+        await using (var context = contextFactory.CreateDbContext())
+        {
+            context.CandidateEvaluations.Add(BuildCandidateEvaluation("1111"));
+            context.CandidateEvaluations.Add(BuildCandidateEvaluation("2222"));
+            await context.SaveChangesAsync();
+        }
+
+        var executor = new FakeAiCliExecutor((_, _) => throw new InvalidOperationException("このテストでは呼ばれないはず。"));
+        var viewModel = BuildViewModel(contextFactory, timeProvider, new AiEvaluationService(executor, contextFactory, timeProvider));
+
+        await viewModel.ReloadDisplayDataAsync();
+        viewModel.SelectedCandidate = viewModel.Candidates.Single(c => c.StockCode == "2222");
+
+        await viewModel.ReloadDisplayDataAsync();
+
+        Assert.NotNull(viewModel.SelectedCandidate);
+        Assert.Equal("2222", viewModel.SelectedCandidate!.StockCode);
+    }
+
+    [Fact]
+    public async Task RunDailyUpdateCommand_ProducesHighConfidenceCandidate_AutomaticallyTriggersAiEvaluation()
+    {
+        using var contextFactory = new SqliteInMemoryContextFactory();
+        var timeProvider = new FixedTimeProvider(FixedNow);
+        var parameters = TestFixtures.DefaultStrategyParameters();
+
+        var stockBars = TestFixtures.BuildTrendWithPullbackAndRecovery("7203");
+        var regimeBars = TestFixtures.BuildTrendWithPullbackAndRecovery("1306");
+        var crossIndex = TestFixtures.FindFreshGoldenCrossIndex(stockBars, parameters);
+
+        // 出来高スコアも確保するため、クロス当日の出来高を平常の3倍にする。
+        var crossDay = stockBars[crossIndex];
+        stockBars[crossIndex] = new DailyBar(
+            crossDay.StockCode, crossDay.TradeDate, crossDay.Open, crossDay.High, crossDay.Low, crossDay.Close, crossDay.Volume * 3);
+
+        var seededStockBars = stockBars.Take(crossIndex).ToList();
+        var seededRegimeBars = regimeBars.Take(crossIndex).ToList();
+
+        await using (var context = contextFactory.CreateDbContext())
+        {
+            context.Stocks.Add(new Stock("7203", "テスト銘柄", MarketSegment.Prime, true, FixedNow.UtcDateTime));
+            context.DailyBars.AddRange(seededStockBars);
+            context.DailyBars.AddRange(seededRegimeBars);
+            await context.SaveChangesAsync();
+        }
+
+        var yahoo = new FakeYahooFinanceClient();
+        yahoo.SetResponse("1306", [ToFetchedBar(regimeBars[crossIndex])]);
+        yahoo.SetResponse("7203", [ToFetchedBar(stockBars[crossIndex])]);
+
+        var executor = new FakeAiCliExecutor((_, _) => Task.FromResult(
+            new AiCliResult("""{ "verdict": "Bullish", "confidence": "High", "summary": "良好。" }""", string.Empty, 0, AiCliCompletion.Completed)));
+        var aiEvaluationService = new AiEvaluationService(executor, contextFactory, timeProvider);
+        var viewModel = BuildViewModel(contextFactory, timeProvider, yahoo, new FakeJpxListedIssuesClient(), aiEvaluationService);
+
+        await viewModel.RunDailyUpdateCommand.ExecuteAsync();
+
+        var candidate = Assert.Single(viewModel.Candidates);
+        Assert.Equal("7203", candidate.StockCode);
+        Assert.Equal(ConfidenceLevel.High, candidate.Overview.Confidence);
+        Assert.Equal(AiEvaluationStatus.Succeeded, candidate.Overview.AiStatus);
+        Assert.Single(executor.Prompts);
+        Assert.Contains("AI総合評価", viewModel.StatusMessage);
+    }
+
+    private static FetchedDailyBar ToFetchedBar(DailyBar bar) => new(bar.TradeDate, bar.Open, bar.High, bar.Low, bar.Close, bar.Volume);
+
+    private static SwingAdviser.Domain.Analysis.CandidateEvaluation BuildCandidateEvaluation(string stockCode) => new()
+    {
+        EvaluationDate = new DateOnly(2026, 1, 10),
+        StockCode = stockCode,
+        Direction = TradeDirection.Long,
+        Score = 80,
+        Confidence = ConfidenceLevel.High,
+        Close = 1000m,
+        MacdLine = 1m,
+        MacdSignal = 0.5m,
+        MacdHistogram = 0.5m,
+        PreviousMacdHistogram = 0.4m,
+        Ema20 = 990m,
+        Ema100 = 950m,
+        Ema100TwentyDaysAgo = 900m,
+        Atr14 = 10m,
+        VolumeRatio = 1.5m,
+        MacdCrossAgeDays = 0,
+        MarketRegimeAligned = true,
+        MacdFreshnessScore = 20,
+        MacdPositionScore = 15,
+        MacdMomentumScore = 10,
+        TrendStrengthScore = 10,
+        VolumeScore = 10,
+        MarketRegimeScore = 15,
+        StrategyParametersJson = "{}",
+        CreatedAtUtc = FixedNow.UtcDateTime,
+    };
 }

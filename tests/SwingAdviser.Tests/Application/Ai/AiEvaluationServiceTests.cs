@@ -1,4 +1,5 @@
 using SwingAdviser.Application.Ai;
+using SwingAdviser.Application.Analysis;
 using SwingAdviser.Domain.Ai;
 using SwingAdviser.Domain.Common;
 using SwingAdviser.Infrastructure.Analysis;
@@ -130,4 +131,116 @@ public class AiEvaluationServiceTests
         Assert.Equal(2, evaluations.Count(e => e.Status == AiEvaluationStatus.Failed));
         Assert.Equal(1, evaluations.Count(e => e.Status == AiEvaluationStatus.Succeeded));
     }
+
+    [Fact]
+    public async Task RunAsync_TargetHasStockNameAndClose_PromptIncludesThem()
+    {
+        using var contextFactory = new SqliteInMemoryContextFactory();
+        var timeProvider = new FixedTimeProvider(NowUtc);
+        var executor = new FakeAiCliExecutor((_, _) => Task.FromResult(new AiCliResult(SuccessJson, string.Empty, 0, AiCliCompletion.Completed)));
+        var service = new AiEvaluationService(executor, contextFactory, timeProvider);
+
+        await service.RunAsync([new AiEvaluationTarget("1111", TradeDirection.Long, "テスト銘柄", 1234m, new DateOnly(2026, 1, 5), 80, ConfidenceLevel.High)]);
+
+        var prompt = Assert.Single(executor.Prompts);
+        Assert.Contains("銘柄名: テスト銘柄", prompt);
+        Assert.Contains("1234", prompt);
+        Assert.Contains("テクニカルスコア: 80点", prompt);
+    }
+
+    [Fact]
+    public void SelectAutoTargets_OnlyHighConfidenceCandidatesAreSelected()
+    {
+        var candidates = new[]
+        {
+            BuildOverview("1111", ConfidenceLevel.High),
+            BuildOverview("2222", ConfidenceLevel.Medium),
+            BuildOverview("3333", ConfidenceLevel.Low),
+        };
+
+        var targets = AiEvaluationService.SelectAutoTargets(candidates);
+
+        var target = Assert.Single(targets);
+        Assert.Equal("1111", target.StockCode);
+    }
+
+    [Fact]
+    public void SelectAutoTargets_PendingOrRunningCandidatesAreExcluded()
+    {
+        var candidates = new[]
+        {
+            BuildOverview("1111", ConfidenceLevel.High, aiStatus: AiEvaluationStatus.Pending),
+            BuildOverview("2222", ConfidenceLevel.High, aiStatus: AiEvaluationStatus.Running),
+            BuildOverview("3333", ConfidenceLevel.High, aiStatus: AiEvaluationStatus.Failed),
+        };
+
+        var targets = AiEvaluationService.SelectAutoTargets(candidates);
+
+        var target = Assert.Single(targets);
+        Assert.Equal("3333", target.StockCode);
+    }
+
+    [Fact]
+    public void SelectAutoTargets_AlreadySucceededOnOrAfterEvaluationDate_IsSkipped()
+    {
+        var evaluationDate = new DateOnly(2026, 1, 10);
+        var candidates = new[]
+        {
+            BuildOverview("1111", ConfidenceLevel.High, evaluationDate: evaluationDate,
+                aiStatus: AiEvaluationStatus.Succeeded, aiRequestedAtUtc: new DateTime(2026, 1, 10, 8, 0, 0, DateTimeKind.Utc)),
+        };
+
+        var targets = AiEvaluationService.SelectAutoTargets(candidates);
+
+        Assert.Empty(targets);
+    }
+
+    [Fact]
+    public void SelectAutoTargets_SucceededBeforeEvaluationDate_IsReRunCandidate()
+    {
+        var evaluationDate = new DateOnly(2026, 1, 10);
+        var candidates = new[]
+        {
+            BuildOverview("1111", ConfidenceLevel.High, evaluationDate: evaluationDate,
+                aiStatus: AiEvaluationStatus.Succeeded, aiRequestedAtUtc: new DateTime(2026, 1, 9, 0, 0, 0, DateTimeKind.Utc)),
+        };
+
+        var targets = AiEvaluationService.SelectAutoTargets(candidates);
+
+        var target = Assert.Single(targets);
+        Assert.Equal("1111", target.StockCode);
+    }
+
+    private static CandidateOverview BuildOverview(
+        string stockCode,
+        ConfidenceLevel confidence,
+        DateOnly? evaluationDate = null,
+        AiEvaluationStatus? aiStatus = null,
+        DateTime? aiRequestedAtUtc = null) => new(
+        stockCode,
+        $"銘柄{stockCode}",
+        TradeDirection.Long,
+        evaluationDate ?? new DateOnly(2026, 1, 10),
+        80,
+        confidence,
+        1000m,
+        1m,
+        0.5m,
+        0.5m,
+        990m,
+        950m,
+        10m,
+        1.5m,
+        true,
+        970m,
+        aiStatus,
+        null,
+        null,
+        null,
+        null,
+        aiRequestedAtUtc,
+        [],
+        [],
+        [],
+        []);
 }

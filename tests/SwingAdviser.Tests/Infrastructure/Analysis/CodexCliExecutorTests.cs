@@ -33,6 +33,37 @@ public class CodexCliExecutorTests
     }
 
     [Fact]
+    public void BuildStartInfo_ReasoningEffortSpecified_AddsConfigOverrideBeforeFinalMessageOption()
+    {
+        var startInfo = CodexCliExecutor.BuildStartInfo(
+            executablePath: "codex.exe",
+            prompt: "この銘柄を調べて",
+            finalMessagePath: @"C:\temp\final.txt",
+            homeDirectory: null,
+            userProfileDirectory: null,
+            reasoningEffort: "medium");
+
+        Assert.Equal(
+            ["exec", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral",
+                "-c", "model_reasoning_effort=medium", "-o", @"C:\temp\final.txt", "この銘柄を調べて"],
+            startInfo.ArgumentList);
+    }
+
+    [Fact]
+    public void BuildStartInfo_ReasoningEffortNotSpecified_OmitsConfigOverride()
+    {
+        var startInfo = CodexCliExecutor.BuildStartInfo(
+            executablePath: "codex.exe",
+            prompt: "prompt",
+            finalMessagePath: "final.txt",
+            homeDirectory: null,
+            userProfileDirectory: null,
+            reasoningEffort: null);
+
+        Assert.DoesNotContain("-c", startInfo.ArgumentList);
+    }
+
+    [Fact]
     public void BuildStartInfo_PromptContainingSpacesAndQuotes_RemainsOneArgument()
     {
         const string prompt = "銘柄コード \"7203\" を調べて スペース入り";

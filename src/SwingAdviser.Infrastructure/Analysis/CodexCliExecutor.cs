@@ -28,6 +28,7 @@ public sealed class CodexCliExecutor : IAiCliExecutor
     private readonly string _executablePath;
     private readonly TimeSpan _timeout;
     private readonly SemaphoreSlim _concurrencyGate;
+    private readonly string? _reasoningEffort;
 
     public CodexCliExecutor(CodexCliOptions options)
     {
@@ -47,6 +48,7 @@ public sealed class CodexCliExecutor : IAiCliExecutor
             : options.ExecutablePath;
         _timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         _concurrencyGate = new SemaphoreSlim(options.MaxParallelism);
+        _reasoningEffort = string.IsNullOrWhiteSpace(options.ReasoningEffort) ? null : options.ReasoningEffort;
     }
 
     public async Task<AiCliResult> ExecuteAsync(string prompt, CancellationToken cancellationToken = default)
@@ -62,7 +64,8 @@ public sealed class CodexCliExecutor : IAiCliExecutor
                 prompt,
                 finalMessagePath,
                 Environment.GetEnvironmentVariable("HOME"),
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                _reasoningEffort);
             return await RunAsync(startInfo, _timeout, finalMessagePath, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -77,7 +80,8 @@ public sealed class CodexCliExecutor : IAiCliExecutor
         string prompt,
         string finalMessagePath,
         string? homeDirectory,
-        string? userProfileDirectory)
+        string? userProfileDirectory,
+        string? reasoningEffort = null)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -107,6 +111,12 @@ public sealed class CodexCliExecutor : IAiCliExecutor
         startInfo.ArgumentList.Add("--sandbox");
         startInfo.ArgumentList.Add("read-only");
         startInfo.ArgumentList.Add("--ephemeral");
+        if (!string.IsNullOrWhiteSpace(reasoningEffort))
+        {
+            startInfo.ArgumentList.Add("-c");
+            startInfo.ArgumentList.Add($"model_reasoning_effort={reasoningEffort}");
+        }
+
         startInfo.ArgumentList.Add("-o");
         startInfo.ArgumentList.Add(finalMessagePath);
         startInfo.ArgumentList.Add(prompt);

@@ -7,7 +7,7 @@ namespace SwingAdviser.Presentation.ViewModels;
 /// キャンセル（CancellationTokenSource）・未処理例外の隔離（Faultedイベント）だけを保証する。
 /// 業務的な例外処理・状態文言の組み立てはViewModel側（execute本体）の責務とする。
 /// </summary>
-public sealed class AsyncRelayCommand(Func<CancellationToken, Task> execute) : ObservableObject, ICommand
+public sealed class AsyncRelayCommand(Func<CancellationToken, Task> execute, Func<bool>? canExecute = null) : ObservableObject, ICommand
 {
     private CancellationTokenSource? _cancellationTokenSource;
     private bool _isRunning;
@@ -29,7 +29,7 @@ public sealed class AsyncRelayCommand(Func<CancellationToken, Task> execute) : O
         }
     }
 
-    public bool CanExecute(object? parameter) => !IsRunning;
+    public bool CanExecute(object? parameter) => !IsRunning && (canExecute?.Invoke() ?? true);
 
     public void Execute(object? parameter) => _ = ExecuteAndObserveFaultsAsync();
 

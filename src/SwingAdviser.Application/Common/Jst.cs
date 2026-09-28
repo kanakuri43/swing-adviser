@@ -10,6 +10,9 @@ public static class Jst
 
     public static DateOnly TodayJst(TimeProvider timeProvider) => DateOnly.FromDateTime(NowJst(timeProvider));
 
+    public static DateTime ToJst(DateTime utcDateTime) =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc), TimeZone);
+
     public static DateTime ToUtc(DateTime jstDateTime) =>
         TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(jstDateTime, DateTimeKind.Unspecified), TimeZone);
 }

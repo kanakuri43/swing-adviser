@@ -1,4 +1,5 @@
 using SwingAdviser.Application.Analysis;
+using SwingAdviser.Application.Common;
 using SwingAdviser.Domain.Ai;
 using SwingAdviser.Domain.Common;
 
@@ -13,7 +14,7 @@ public sealed class CandidateRow
     public CandidateRow(CandidateOverview overview, Func<CandidateRow, CancellationToken, Task> runAiEvaluation)
     {
         Overview = overview;
-        RunAiEvaluationCommand = new AsyncRelayCommand(ct => runAiEvaluation(this, ct));
+        RunAiEvaluationCommand = new AsyncRelayCommand(ct => runAiEvaluation(this, ct), canExecute: () => !IsAiEvaluationRunning);
     }
 
     public CandidateOverview Overview { get; }
@@ -58,9 +59,44 @@ public sealed class CandidateRow
         _ => Overview.AiStatus.ToString() ?? "未実行",
     };
 
-    public string AiVerdictText => Overview.AiVerdict?.ToString() ?? "—";
+    /// <summary>候補にAI評価が実行中（待機中含む）かどうか。DB上の状態を唯一の情報源とし、
+    /// 手動実行・日次更新後の自動実行のどちらであっても他行の再読込に影響されず正しく反映される。</summary>
+    public bool IsAiEvaluationRunning => Overview.AiStatus is AiEvaluationStatus.Pending or AiEvaluationStatus.Running;
+
+    /// <summary>DataTriggerでの色分け用（enum名そのまま）。</summary>
+    public string AiVerdictName => Overview.AiVerdict?.ToString() ?? "None";
+
+    public string AiVerdictText => Overview.AiVerdict switch
+    {
+        AiVerdict.Bullish => "Bullish（強気）",
+        AiVerdict.Neutral => "Neutral（中立）",
+        AiVerdict.Bearish => "Bearish（弱気）",
+        _ => "—",
+    };
+
+    public string AiConfidenceText => Overview.AiConfidence?.ToString() ?? "—";
 
     public string? AiSummary => Overview.AiSummary;
+
+    public string? AiErrorMessage => Overview.AiErrorMessage;
+
+    public bool HasAiFailure => Overview.AiStatus == AiEvaluationStatus.Failed;
+
+    public string AiEvaluatedAtJstText => Overview.AiRequestedAtUtc is { } requestedAtUtc
+        ? Jst.ToJst(requestedAtUtc).ToString("yyyy-MM-dd HH:mm")
+        : "—";
+
+    /// <summary>詳細パネルの状態行。未実行／実行中／失敗理由のいずれかを1行で表す（成功時はnull）。</summary>
+    public string? AiStateMessage => Overview.AiStatus switch
+    {
+        null => "AI評価はまだ実行されていません。",
+        AiEvaluationStatus.Pending => "AI評価は待機中です…",
+        AiEvaluationStatus.Running => "AI評価を実行中です…",
+        AiEvaluationStatus.Failed => $"AI評価に失敗しました: {Overview.AiErrorMessage}",
+        _ => null,
+    };
+
+    public bool HasAiStateMessage => AiStateMessage is not null;
 
     public IReadOnlyList<string> AiPositiveFactors => Overview.AiPositiveFactors;
 
@@ -68,7 +104,12 @@ public sealed class CandidateRow
 
     public IReadOnlyList<string> AiInvalidationConditions => Overview.AiInvalidationConditions;
 
-    public IReadOnlyList<string> AiReferenceUrls => Overview.AiReferenceUrls;
+    /// <summary>AIが出力したURLのうち、既定ブラウザで安全に開けるhttp/https形式のもののみを公開する。</summary>
+    public IReadOnlyList<Uri> AiReferenceUrls => Overview.AiReferenceUrls
+        .Select(url => Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) ? uri : null)
+        .Where(uri => uri is not null)
+        .Select(uri => uri!)
+        .ToArray();
 
     public bool HasAiResult => Overview.AiStatus == AiEvaluationStatus.Succeeded;
 

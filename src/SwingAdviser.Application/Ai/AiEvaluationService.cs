@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using SwingAdviser.Application.Analysis;
+using SwingAdviser.Application.Common;
 using SwingAdviser.Domain.Ai;
 using SwingAdviser.Domain.Common;
 using SwingAdviser.Infrastructure.Analysis;
@@ -6,7 +8,14 @@ using SwingAdviser.Infrastructure.Persistence;
 
 namespace SwingAdviser.Application.Ai;
 
-public sealed record AiEvaluationTarget(string StockCode, TradeDirection? Direction);
+public sealed record AiEvaluationTarget(
+    string StockCode,
+    TradeDirection? Direction,
+    string? StockName = null,
+    decimal? LatestClose = null,
+    DateOnly? LatestCloseDate = null,
+    int? Score = null,
+    ConfidenceLevel? Confidence = null);
 
 public sealed record AiEvaluationProgress(int Completed, int Total);
 
@@ -46,9 +55,9 @@ public sealed class AiEvaluationService(
         var completed = 0;
         progress?.Report(new AiEvaluationProgress(0, total));
 
-        var tasks = evaluations.Select(async evaluation =>
+        var tasks = evaluations.Zip(targets, (evaluation, target) => (evaluation, target)).Select(async pair =>
         {
-            var succeeded = await ExecuteOneAsync(evaluation.Id, evaluation.StockCode, evaluation.Direction, cancellationToken)
+            var succeeded = await ExecuteOneAsync(pair.evaluation.Id, pair.target, cancellationToken)
                 .ConfigureAwait(false);
             var done = Interlocked.Increment(ref completed);
             progress?.Report(new AiEvaluationProgress(done, total));
@@ -57,6 +66,47 @@ public sealed class AiEvaluationService(
 
         var results = await Task.WhenAll(tasks).ConfigureAwait(false);
         return new AiEvaluationRunResult(results.Count(r => r), results.Count(r => !r));
+    }
+
+    /// <summary>
+    /// 日次更新後の自動AI評価対象を選ぶ純粋関数。信頼度Highのみ、実行中（Pending/Running）のものを除き、
+    /// 同一評価日以降にすでに成功済みのものは再実行しない（1日に複数回更新した場合の重複実行防止）。
+    /// </summary>
+    public static IReadOnlyList<AiEvaluationTarget> SelectAutoTargets(IReadOnlyList<CandidateOverview> candidates)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        var targets = new List<AiEvaluationTarget>();
+        foreach (var candidate in candidates)
+        {
+            if (candidate.Confidence != ConfidenceLevel.High)
+            {
+                continue;
+            }
+
+            if (candidate.AiStatus is AiEvaluationStatus.Pending or AiEvaluationStatus.Running)
+            {
+                continue;
+            }
+
+            if (candidate.AiStatus == AiEvaluationStatus.Succeeded
+                && candidate.AiRequestedAtUtc is { } requestedAtUtc
+                && DateOnly.FromDateTime(Jst.ToJst(requestedAtUtc)) >= candidate.EvaluationDate)
+            {
+                continue;
+            }
+
+            targets.Add(new AiEvaluationTarget(
+                candidate.StockCode,
+                candidate.Direction,
+                candidate.StockName,
+                candidate.Close,
+                candidate.EvaluationDate,
+                candidate.Score,
+                candidate.Confidence));
+        }
+
+        return targets;
     }
 
     /// <summary>起動時に残っているPending/Runningを中断扱いでFailedにする。呼び出しの配線はPresentation層。</summary>
@@ -82,14 +132,21 @@ public sealed class AiEvaluationService(
         return interrupted.Count;
     }
 
-    private async Task<bool> ExecuteOneAsync(long evaluationId, string stockCode, TradeDirection? direction, CancellationToken cancellationToken)
+    private async Task<bool> ExecuteOneAsync(long evaluationId, AiEvaluationTarget target, CancellationToken cancellationToken)
     {
         try
         {
             await TransitionAsync(evaluationId, evaluation => evaluation.MarkRunning(timeProvider.GetUtcNow().UtcDateTime))
                 .ConfigureAwait(false);
 
-            var prompt = AiPromptBuilder.Build(new AiPromptBuilder.PromptContext(stockCode, stockCode, direction, null, null, null, null));
+            var prompt = AiPromptBuilder.Build(new AiPromptBuilder.PromptContext(
+                target.StockCode,
+                target.StockName ?? target.StockCode,
+                target.Direction,
+                target.LatestClose,
+                target.LatestCloseDate,
+                target.Score,
+                target.Confidence));
             var result = await executor.ExecuteAsync(prompt, cancellationToken).ConfigureAwait(false);
 
             var failureReason = ClassifyFailure(result);

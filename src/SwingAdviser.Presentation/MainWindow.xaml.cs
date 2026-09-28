@@ -1,4 +1,7 @@
 using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Navigation;
 using MahApps.Metro.Controls;
 using SwingAdviser.Application.Positions;
 using SwingAdviser.Presentation.ViewModels;
@@ -57,5 +60,43 @@ public partial class MainWindow : MetroWindow
         {
             await _viewModel.ReloadDisplayDataAsync();
         }
+    }
+
+    /// <summary>候補行のダブルクリックでYahoo!ファイナンスのチャートページを既定ブラウザで開く。
+    /// 行内のボタン（実行・約定を手入力）上でのダブルクリックは無視する。</summary>
+    private void CandidateRowDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (FindAncestorOrSelf<System.Windows.Controls.Button>(e.OriginalSource as DependencyObject) is not null)
+        {
+            return;
+        }
+
+        if ((sender as FrameworkElement)?.DataContext is not CandidateRow candidate)
+        {
+            return;
+        }
+
+        BrowserLauncher.Open(BrowserLauncher.YahooFinanceChartUri(candidate.StockCode));
+    }
+
+    private void ReferenceUrlRequestNavigate(object sender, RequestNavigateEventArgs e)
+    {
+        BrowserLauncher.Open(e.Uri);
+        e.Handled = true;
+    }
+
+    private static T? FindAncestorOrSelf<T>(DependencyObject? element) where T : DependencyObject
+    {
+        while (element is not null)
+        {
+            if (element is T match)
+            {
+                return match;
+            }
+
+            element = VisualTreeHelper.GetParent(element);
+        }
+
+        return null;
     }
 }

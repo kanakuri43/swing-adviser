@@ -74,6 +74,7 @@ public class ConfigurationBindingTests
 
         Assert.NotNull(options);
         Assert.Equal(600, options!.TimeoutSeconds);
-        Assert.Equal(2, options.MaxParallelism);
+        Assert.Equal(4, options.MaxParallelism);
+        Assert.Equal("medium", options.ReasoningEffort);
     }
 }
