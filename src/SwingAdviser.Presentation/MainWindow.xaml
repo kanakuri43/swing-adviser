@@ -129,15 +129,10 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Padding="10" CornerRadius="4" Background="{DynamicResource MahApps.Brushes.Gray9}">
-            <TextBlock Style="{StaticResource MutedText}" Text="{Binding SafetyNotice}" />
-        </Border>
-
-        <Grid Grid.Row="1" Margin="0,12,0,0">
+        <Grid Grid.Row="0" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -157,7 +152,7 @@
             </StackPanel>
         </Grid>
 
-        <StackPanel Grid.Row="2" Margin="0,10,0,0">
+        <StackPanel Grid.Row="1" Margin="0,10,0,0">
             <DockPanel LastChildFill="False">
                 <TextBlock FontWeight="SemiBold" Text="{Binding DailyUpdateStageText}" />
                 <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold" Text="{Binding StatusMessage}" />
@@ -167,7 +162,7 @@
                          Value="{Binding DailyUpdateProgressPercent, Mode=OneWay}" />
         </StackPanel>
 
-        <TabControl Grid.Row="3" Margin="0,12,0,0">
+        <TabControl Grid.Row="2" Margin="0,12,0,0">
             <TabItem Header="候補">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>

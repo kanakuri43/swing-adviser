@@ -62,10 +62,6 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string Title => "SwingAdviser — 日本株スイング判断支援";
 
-    public string SafetyNotice =>
-        "分析結果・AI評価は参考情報であり、利益を保証するものではありません。本アプリは証券会社へ注文を送信せず、自動売買・自動決済は行いません。" +
-        "約定は利用者が証券会社側で行い、結果をこのアプリへ手入力します。";
-
     public string StatusMessage { get => _statusMessage; private set => Set(ref _statusMessage, value); }
 
     public string DailyUpdateStageText { get => _dailyUpdateStageText; private set => Set(ref _dailyUpdateStageText, value); }
