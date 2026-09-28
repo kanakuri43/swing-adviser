@@ -25,6 +25,8 @@ public static class TestFixtures
             TrendSlopeLookbackDays = 20,
             OverextendedAtrMultiple = 2.0m,
             MarketRegimeSymbol = "1306",
+            EarlySignalMinRisingDays = 2,
+            EarlySignalMaxGapAtrMultiple = 0.5m,
         },
         Scoring = new ScoringParameters
         {
@@ -40,6 +42,7 @@ public static class TestFixtures
             VolumeRatioFullScore = 2.0m,
             HighConfidenceThreshold = 70,
             MediumConfidenceThreshold = 50,
+            EarlySignalFreshnessScoreCapRatio = 0.6m,
         },
         Risk = new RiskParameters
         {

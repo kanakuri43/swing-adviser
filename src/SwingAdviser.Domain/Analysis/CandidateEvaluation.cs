@@ -40,7 +40,12 @@ public class CandidateEvaluation
 
     public required decimal VolumeRatio { get; init; }
 
-    public required int MacdCrossAgeDays { get; init; }
+    /// <summary>MACD線がシグナル線を上回って(Long)/下回って(Short)から何営業日経過したか（当日=0）。
+    /// 早期シグナル（未クロス、<see cref="IsEarlySignal"/>=true）の場合はnull。</summary>
+    public required int? MacdCrossAgeDays { get; init; }
+
+    /// <summary>true: まだゴールデンクロス前だがヒストグラム反転で候補化した早期シグナル。false: クロス確定済み。</summary>
+    public required bool IsEarlySignal { get; init; }
 
     public required bool MarketRegimeAligned { get; init; }
 

@@ -153,6 +153,7 @@ public class SwingAdviserDbContextTests
             Atr14 = 8.5m,
             VolumeRatio = 1.8m,
             MacdCrossAgeDays = 0,
+            IsEarlySignal = false,
             MarketRegimeAligned = true,
             MacdFreshnessScore = 20,
             MacdPositionScore = 15,

@@ -34,6 +34,7 @@ public class CandidateScannerTests
         var candidate = Assert.Single(results);
         Assert.Equal(TradeDirection.Long, candidate.Direction);
         Assert.Equal(0, candidate.MacdCrossAgeDays);
+        Assert.False(candidate.IsEarlySignal);
         Assert.Equal(
             candidate.MacdFreshnessScore + candidate.MacdPositionScore + candidate.MacdMomentumScore
             + candidate.TrendStrengthScore + candidate.VolumeScore + candidate.MarketRegimeScore,
@@ -167,6 +168,125 @@ public class CandidateScannerTests
 
         Assert.False(candidate.MarketRegimeAligned);
         Assert.Equal(0, candidate.MarketRegimeScore);
+    }
+
+    [Fact]
+    public void Evaluate_EarlySignalBeforeCross_ReturnsCandidateWithCappedFreshnessScore()
+    {
+        var parameters = TestStrategyParameters();
+        var stockBars = BuildTrendWithPullbackAndRecovery("7203");
+        var regimeBars = BuildTrendWithPullbackAndRecovery("1306");
+        var crossIndex = FindFreshGoldenCrossIndex(stockBars, parameters);
+
+        // クロスの4営業日前（まだ未クロス。ヒストグラムは底から連続拡大中、乖離幅0.39ATR）。
+        var todayIndex = crossIndex - 4;
+        var bars = stockBars.Take(todayIndex + 1).ToList();
+        var regime = regimeBars.Take(todayIndex + 1).ToList();
+
+        var scanner = new CandidateScanner(parameters);
+        var candidate = Assert.Single(scanner.Evaluate("7203", bars, regime, NowUtc));
+
+        Assert.Equal(TradeDirection.Long, candidate.Direction);
+        Assert.True(candidate.IsEarlySignal);
+        Assert.Null(candidate.MacdCrossAgeDays);
+        Assert.Equal(12, candidate.MacdFreshnessScore); // 20 * 0.6（EarlySignalFreshnessScoreCapRatio）
+        Assert.Equal(
+            candidate.MacdFreshnessScore + candidate.MacdPositionScore + candidate.MacdMomentumScore
+            + candidate.TrendStrengthScore + candidate.VolumeScore + candidate.MarketRegimeScore,
+            candidate.Score);
+    }
+
+    [Fact]
+    public void Evaluate_EarlySignalReflectedPriceAxis_ReturnsShortCandidateWithIdenticalScoreComponents()
+    {
+        var parameters = TestStrategyParameters();
+        var stockBars = BuildTrendWithPullbackAndRecovery("7203");
+        var regimeBars = BuildTrendWithPullbackAndRecovery("1306");
+        var crossIndex = FindFreshGoldenCrossIndex(stockBars, parameters);
+
+        var todayIndex = crossIndex - 4;
+        var longBars = stockBars.Take(todayIndex + 1).ToList();
+        var longRegime = regimeBars.Take(todayIndex + 1).ToList();
+
+        const decimal axis = 100_000m;
+        var shortBars = TestFixtures.Reflect(longBars, "7203", axis);
+        var shortRegime = TestFixtures.Reflect(longRegime, "1306", axis);
+
+        var scanner = new CandidateScanner(parameters);
+        var longCandidate = Assert.Single(scanner.Evaluate("7203", longBars, longRegime, NowUtc));
+        var shortCandidate = Assert.Single(scanner.Evaluate("7203", shortBars, shortRegime, NowUtc));
+
+        Assert.True(longCandidate.IsEarlySignal);
+        Assert.Equal(TradeDirection.Short, shortCandidate.Direction);
+        Assert.Equal(longCandidate.IsEarlySignal, shortCandidate.IsEarlySignal);
+        Assert.Equal(longCandidate.MacdCrossAgeDays, shortCandidate.MacdCrossAgeDays);
+        Assert.Equal(longCandidate.Score, shortCandidate.Score);
+    }
+
+    [Fact]
+    public void Evaluate_EarlySignalGapTooLarge_RejectsCandidate()
+    {
+        var parameters = TestStrategyParameters();
+        var stockBars = BuildTrendWithPullbackAndRecovery("7203");
+        var regimeBars = BuildTrendWithPullbackAndRecovery("1306");
+        var crossIndex = FindFreshGoldenCrossIndex(stockBars, parameters);
+
+        // クロスの5営業日前（乖離幅0.51ATRでEarlySignalMaxGapAtrMultiple=0.5を超える）。
+        var todayIndex = crossIndex - 5;
+        var bars = stockBars.Take(todayIndex + 1).ToList();
+        var regime = regimeBars.Take(todayIndex + 1).ToList();
+
+        var scanner = new CandidateScanner(parameters);
+        var results = scanner.Evaluate("7203", bars, regime, NowUtc);
+
+        Assert.DoesNotContain(results, c => c.Direction == TradeDirection.Long);
+    }
+
+    [Fact]
+    public void Evaluate_EarlySignalInsufficientRisingStreak_RejectsCandidateUnlessThresholdLowered()
+    {
+        var parameters = TestStrategyParameters();
+        var stockBars = BuildTrendWithPullbackAndRecovery("7203");
+        var regimeBars = BuildTrendWithPullbackAndRecovery("1306");
+        var crossIndex = FindFreshGoldenCrossIndex(stockBars, parameters);
+
+        var todayIndex = crossIndex - 4;
+        var bars = stockBars.Take(todayIndex + 1).ToList();
+        var regime = regimeBars.Take(todayIndex + 1).ToList();
+
+        // 直近2日を「下げ→下げ」にしてから当日を強い上げ足にする。当日は前日比拡大するが、
+        // 連続拡大日数は1日しかない（前日は前々日比で縮小している）。
+        var twoDaysAgo = bars[^3];
+        var yesterday = new DailyBar(
+            "7203", bars[^2].TradeDate, twoDaysAgo.Close - 20m, twoDaysAgo.Close - 15m, twoDaysAgo.Close - 45m, twoDaysAgo.Close - 40m, 200_000L);
+        var today = new DailyBar(
+            "7203", bars[^1].TradeDate, yesterday.Close, yesterday.Close + 60m, yesterday.Close - 2m, yesterday.Close + 55m, 200_000L);
+        bars[^2] = yesterday;
+        bars[^1] = today;
+
+        var defaultScanner = new CandidateScanner(parameters);
+        Assert.DoesNotContain(defaultScanner.Evaluate("7203", bars, regime, NowUtc), c => c.Direction == TradeDirection.Long);
+
+        var loosenedParameters = new StrategyParameters
+        {
+            Indicators = parameters.Indicators,
+            Gates = new GateParameters
+            {
+                MacdCrossMaxAgeDays = parameters.Gates.MacdCrossMaxAgeDays,
+                TrendSlopeLookbackDays = parameters.Gates.TrendSlopeLookbackDays,
+                OverextendedAtrMultiple = parameters.Gates.OverextendedAtrMultiple,
+                MarketRegimeSymbol = parameters.Gates.MarketRegimeSymbol,
+                EarlySignalMinRisingDays = 1,
+                EarlySignalMaxGapAtrMultiple = parameters.Gates.EarlySignalMaxGapAtrMultiple,
+            },
+            Scoring = parameters.Scoring,
+            Risk = parameters.Risk,
+            AnalysisWindow = parameters.AnalysisWindow,
+        };
+        var loosenedScanner = new CandidateScanner(loosenedParameters);
+        var candidate = Assert.Single(loosenedScanner.Evaluate("7203", bars, regime, NowUtc));
+        Assert.Equal(TradeDirection.Long, candidate.Direction);
+        Assert.True(candidate.IsEarlySignal);
     }
 
     [Fact]

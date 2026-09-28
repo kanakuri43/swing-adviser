@@ -89,3 +89,12 @@
 - [x] 分割前後の価格・株数・ATR単位整合テスト — `DailyBarTests`/`PositionTests`のApplySplit系、`DailyBarSynchronizerTests`（保存済みバー・保有ポジションへの伝播）
 - [x] 期待値を本体と同じ計算式で再計算するだけの無意味なテストを書いていないか確認 — 全テストを監査し、`TechnicalIndicatorsTests.Macd_SignalSeed_ExcludesUndefinedLeadingValues`が本体と同じ再帰式をテスト内で再実装していた1件のみ該当。EMA自体の再帰式検証は`Ema_MatchesHandComputedSeedAndRecursion`（手計算のリテラル値）が既に独立にカバー済みのため、Macd固有の境界（未定義区間・シグナルの種の扱い・Histogram=Line−Signatureの整合性）だけを見るよう書き直した。他に該当なし
 - [x] テーブル数が35を超えていないか確認（目安15前後）— 7テーブル（ai_evaluations/candidate_evaluations/daily_bars/holding_evaluations/positions/stocks/executions）、`InitialCreate`マイグレーション1件のみ
+
+## Phase 11: MACDトリガーの早期シグナル追加
+候補化のタイミングが「一旦下がって戻った後」に偏る（ゴールデンクロス確定を待つと本質的に遅れる）という運用フィードバックを受けて実施。
+- [x] `GateParameters`に`EarlySignalMinRisingDays`/`EarlySignalMaxGapAtrMultiple`、`ScoringParameters`に`EarlySignalFreshnessScoreCapRatio`を追加（`appsettings.json`・`TestFixtures`にも反映）
+- [x] `CandidateScanner`: 未クロスでもヒストグラム連続拡大＋乖離幅がATR基準内なら「早期シグナル」として候補化。既存の条件2〜4（勢い/トレンド環境/過熱除外）はそのまま両ブランチ共通で適用
+- [x] `CandidateEvaluation.MacdCrossAgeDays`を`int?`化（早期シグナルはnull）、`IsEarlySignal`を追加
+- [x] 候補タブに「MACD状態」列（早期(未確定)/確定）を追加し、未確定シグナルを確定と同列に見せない
+- [x] `InitialCreate`マイグレーションを編集（列追加・再生成。実運用データ無しのため単一マイグレーション方針を維持）
+- [x] 境界値テスト（早期シグナル成立/乖離幅超過で不成立/連続拡大日数不足で不成立）、Long/Short対称性テストを追加。全180件成功

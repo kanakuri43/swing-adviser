@@ -141,6 +141,7 @@ public class CandidateOverviewReaderTests
             Atr14 = atr,
             VolumeRatio = 1.5m,
             MacdCrossAgeDays = 0,
+            IsEarlySignal = false,
             MarketRegimeAligned = true,
             MacdFreshnessScore = 20,
             MacdPositionScore = 15,

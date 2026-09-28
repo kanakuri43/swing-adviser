@@ -67,7 +67,19 @@ public sealed class CandidateScanner
             var sign = direction == TradeDirection.Long ? 1m : -1m;
 
             var crossAgeDays = FindDirectionalCrossAge(sign, macd.Line, macd.Signal, todayIndex);
-            if (crossAgeDays >= gates.MacdCrossMaxAgeDays)
+            var isConfirmedCross = crossAgeDays < gates.MacdCrossMaxAgeDays;
+
+            var isEarlySignal = false;
+            if (!isConfirmedCross)
+            {
+                var risingStreak = CountRisingStreak(sign, macd.Histogram, todayIndex);
+                var gapAtrMultiple = sign * (macd.Signal[todayIndex] - macd.Line[todayIndex]) / atr[todayIndex];
+                isEarlySignal = risingStreak >= gates.EarlySignalMinRisingDays
+                    && gapAtrMultiple > 0
+                    && gapAtrMultiple <= gates.EarlySignalMaxGapAtrMultiple;
+            }
+
+            if (!isConfirmedCross && !isEarlySignal)
             {
                 continue;
             }
@@ -93,12 +105,22 @@ public sealed class CandidateScanner
 
             var marketRegimeAligned = sign * (regimeMacd.Line[regimeTodayIndex] - regimeMacd.Signal[regimeTodayIndex]) > 0;
 
-            var freshnessScore = ScoreLinear(
-                scoring.MacdFreshnessPoints,
-                1m - ((decimal)crossAgeDays / (gates.MacdCrossMaxAgeDays - 1)));
+            var freshnessScore = isConfirmedCross
+                ? ScoreLinear(
+                    scoring.MacdFreshnessPoints,
+                    1m - ((decimal)crossAgeDays / (gates.MacdCrossMaxAgeDays - 1)))
+                : (int)Math.Round(scoring.MacdFreshnessPoints * scoring.EarlySignalFreshnessScoreCapRatio, MidpointRounding.AwayFromZero);
 
-            var crossDayIndex = todayIndex - crossAgeDays;
-            var positionScore = sign * macd.Line[crossDayIndex] > 0 ? scoring.MacdPositionPoints : 0;
+            int positionScore;
+            if (isConfirmedCross)
+            {
+                var crossDayIndex = todayIndex - crossAgeDays;
+                positionScore = sign * macd.Line[crossDayIndex] > 0 ? scoring.MacdPositionPoints : 0;
+            }
+            else
+            {
+                positionScore = sign * macd.Line[todayIndex] > 0 ? scoring.MacdPositionPoints : 0;
+            }
 
             var momentumScore = ScoreLinear(
                 scoring.MacdMomentumPoints,
@@ -138,7 +160,8 @@ public sealed class CandidateScanner
                 Ema100TwentyDaysAgo = ema100[todayIndex - gates.TrendSlopeLookbackDays],
                 Atr14 = atr[todayIndex],
                 VolumeRatio = volumeRatio[todayIndex],
-                MacdCrossAgeDays = crossAgeDays,
+                MacdCrossAgeDays = isConfirmedCross ? crossAgeDays : null,
+                IsEarlySignal = isEarlySignal,
                 MarketRegimeAligned = marketRegimeAligned,
                 MacdFreshnessScore = freshnessScore,
                 MacdPositionScore = positionScore,
@@ -174,6 +197,20 @@ public sealed class CandidateScanner
         }
 
         return age;
+    }
+
+    /// <summary>ヒストグラムがsign方向に連続拡大している日数（当日を含む）を、拡大が途切れるまで遡って数える。</summary>
+    private static int CountRisingStreak(decimal sign, decimal[] histogram, int todayIndex)
+    {
+        var streak = 0;
+        var i = todayIndex;
+        while (i - 1 >= 0 && sign * (histogram[i] - histogram[i - 1]) > 0)
+        {
+            streak++;
+            i--;
+        }
+
+        return streak;
     }
 
     private static int ScoreLinear(int maxPoints, decimal ratio) =>

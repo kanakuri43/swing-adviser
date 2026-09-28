@@ -26,6 +26,17 @@ public sealed class GateParameters
     public int TrendSlopeLookbackDays { get; init; }
     public decimal OverextendedAtrMultiple { get; init; }
     public string MarketRegimeSymbol { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 未クロスでも候補化する「早期シグナル」に必要な、ヒストグラムの連続拡大日数（当日を含む）。
+    /// </summary>
+    public int EarlySignalMinRisingDays { get; init; }
+
+    /// <summary>
+    /// 早期シグナルとして許容する、MACD線とシグナル線の乖離幅の上限（ATR14正規化）。
+    /// これを超える乖離はクロスまで遠すぎるとみなし早期シグナル扱いしない。
+    /// </summary>
+    public decimal EarlySignalMaxGapAtrMultiple { get; init; }
 }
 
 public sealed class ScoringParameters
@@ -42,6 +53,12 @@ public sealed class ScoringParameters
     public decimal VolumeRatioFullScore { get; init; }
     public int HighConfidenceThreshold { get; init; }
     public int MediumConfidenceThreshold { get; init; }
+
+    /// <summary>
+    /// 早期シグナル（未クロス）のMACD鮮度スコアに掛ける係数。確定シグナルより確信度が低いことを表すため
+    /// MacdFreshnessPointsに対して頭打ちする（クロス日基準の経過日数という概念が早期シグナルには無いため）。
+    /// </summary>
+    public decimal EarlySignalFreshnessScoreCapRatio { get; init; }
 }
 
 public sealed class RiskParameters

@@ -11,7 +11,7 @@ using SwingAdviser.Infrastructure.Persistence;
 namespace SwingAdviser.Infrastructure.Migrations
 {
     [DbContext(typeof(SwingAdviserDbContext))]
-    [Migration("20260926112305_InitialCreate")]
+    [Migration("20260928092658_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -140,7 +140,11 @@ namespace SwingAdviser.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("evaluation_date");
 
-                    b.Property<int>("MacdCrossAgeDays")
+                    b.Property<bool>("IsEarlySignal")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("is_early_signal");
+
+                    b.Property<int?>("MacdCrossAgeDays")
                         .HasColumnType("INTEGER")
                         .HasColumnName("macd_cross_age_days");
 

@@ -37,6 +37,10 @@ public sealed class CandidateRow
 
     public bool MarketRegimeAligned => Overview.MarketRegimeAligned;
 
+    /// <summary>「早期(未確定)」: ゴールデンクロス前のヒストグラム反転で候補化。「確定」: クロス済み。
+    /// 未確定シグナルを確定と同列に見せないための表示（CLAUDE.md「確実性を示す表現をしない」）。</summary>
+    public string MacdStageText => Overview.IsEarlySignal ? "早期(未確定)" : "確定";
+
     public decimal ReferenceStopLossPrice => Overview.ReferenceStopLossPrice;
 
     public decimal MacdLine => Overview.MacdLine;

@@ -137,7 +137,11 @@ namespace SwingAdviser.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("evaluation_date");
 
-                    b.Property<int>("MacdCrossAgeDays")
+                    b.Property<bool>("IsEarlySignal")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("is_early_signal");
+
+                    b.Property<int?>("MacdCrossAgeDays")
                         .HasColumnType("INTEGER")
                         .HasColumnName("macd_cross_age_days");
 

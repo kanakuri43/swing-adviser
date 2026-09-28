@@ -232,6 +232,7 @@ public class AiEvaluationServiceTests
         10m,
         1.5m,
         true,
+        false,
         970m,
         aiStatus,
         null,
