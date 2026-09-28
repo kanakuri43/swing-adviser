@@ -174,7 +174,6 @@ public sealed class AiEvaluationService(
                 parsed.PositiveFactors,
                 parsed.RiskFactors,
                 parsed.InvalidationConditions,
-                parsed.ReferenceUrls,
                 timeProvider.GetUtcNow().UtcDateTime)).ConfigureAwait(false);
             return true;
         }

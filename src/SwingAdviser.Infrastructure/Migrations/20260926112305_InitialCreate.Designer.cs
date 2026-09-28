@@ -79,11 +79,6 @@ namespace SwingAdviser.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("positive_factors");
 
-                    b.Property<string>("_referenceUrls")
-                        .IsRequired()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("reference_urls");
-
                     b.Property<string>("_riskFactors")
                         .IsRequired()
                         .HasColumnType("TEXT")

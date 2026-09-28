@@ -110,7 +110,6 @@ public class SwingAdviserDbContextTests
                 ["好材料1", "好材料2"],
                 ["リスク1"],
                 ["無効化条件1"],
-                ["https://example.com/a", "https://example.com/b"],
                 NowUtc.AddMinutes(2));
 
             context.AiEvaluations.Add(evaluation);
@@ -127,7 +126,6 @@ public class SwingAdviserDbContextTests
             Assert.Equal(["好材料1", "好材料2"], reloaded.PositiveFactors);
             Assert.Equal(["リスク1"], reloaded.RiskFactors);
             Assert.Equal(["無効化条件1"], reloaded.InvalidationConditions);
-            Assert.Equal(["https://example.com/a", "https://example.com/b"], reloaded.ReferenceUrls);
         }
     }
 

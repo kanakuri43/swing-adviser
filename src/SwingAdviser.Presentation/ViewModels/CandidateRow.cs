@@ -104,13 +104,6 @@ public sealed class CandidateRow
 
     public IReadOnlyList<string> AiInvalidationConditions => Overview.AiInvalidationConditions;
 
-    /// <summary>AIが出力したURLのうち、既定ブラウザで安全に開けるhttp/https形式のもののみを公開する。</summary>
-    public IReadOnlyList<Uri> AiReferenceUrls => Overview.AiReferenceUrls
-        .Select(url => Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) ? uri : null)
-        .Where(uri => uri is not null)
-        .Select(uri => uri!)
-        .ToArray();
-
     public bool HasAiResult => Overview.AiStatus == AiEvaluationStatus.Succeeded;
 
     public AsyncRelayCommand RunAiEvaluationCommand { get; }

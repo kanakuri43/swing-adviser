@@ -53,11 +53,10 @@ public static class AiPromptBuilder
             {
               "verdict": "Bullish | Neutral | Bearish",
               "confidence": "High | Medium | Low",
-              "summary": "調査結果の要約（日本語、相場見通しとして記述する）",
+              "summary": "調査結果の要約（日本語、相場見通しとして記述する。2〜3文程度に区切り、1文を長くしすぎない）",
               "positiveFactors": ["好材料を短い文で列挙"],
               "riskFactors": ["リスク要因を短い文で列挙"],
-              "invalidationConditions": ["この見通しが無効化される条件を短い文で列挙"],
-              "referenceUrls": ["参照した情報源のURL"]
+              "invalidationConditions": ["この見通しが無効化される条件を短い文で列挙"]
             }
             """;
     }

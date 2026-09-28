@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Windows.Threading;
 using SwingAdviser.Application.Ai;
 using SwingAdviser.Application.Analysis;
+using SwingAdviser.Application.Common;
 using SwingAdviser.Application.DailyUpdate;
 using SwingAdviser.Application.Risk;
 using SwingAdviser.Application.Positions;
@@ -25,6 +27,10 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _dailyUpdateStageText = "未実行";
     private double _dailyUpdateProgressPercent;
     private bool _isDailyUpdateProgressIndeterminate;
+    private string _elapsedTimeText = string.Empty;
+    private string _lastUpdatedAtText = string.Empty;
+    private DispatcherTimer? _elapsedTimer;
+    private DateTime _dailyUpdateStartedAtUtc;
 
     public MainWindowViewModel(
         DailyUpdateService dailyUpdateService,
@@ -67,6 +73,12 @@ public sealed class MainWindowViewModel : ObservableObject
     public double DailyUpdateProgressPercent { get => _dailyUpdateProgressPercent; private set => Set(ref _dailyUpdateProgressPercent, value); }
 
     public bool IsDailyUpdateProgressIndeterminate { get => _isDailyUpdateProgressIndeterminate; private set => Set(ref _isDailyUpdateProgressIndeterminate, value); }
+
+    /// <summary>日次更新の実行中のみ値を持つ。ボタン近傍に経過時間として表示する。</summary>
+    public string ElapsedTimeText { get => _elapsedTimeText; private set => Set(ref _elapsedTimeText, value); }
+
+    /// <summary>直近の日次更新（株価取得・候補抽出）が完了した日時。未実行の間は空文字。</summary>
+    public string LastUpdatedAtText { get => _lastUpdatedAtText; private set => Set(ref _lastUpdatedAtText, value); }
 
     public AsyncRelayCommand RunDailyUpdateCommand { get; }
 
@@ -163,12 +175,14 @@ public sealed class MainWindowViewModel : ObservableObject
         DailyUpdateStageText = "開始準備中";
         DailyUpdateProgressPercent = 0;
         IsDailyUpdateProgressIndeterminate = true;
+        StartElapsedTimer();
 
         DailyUpdateResult? result = null;
         try
         {
             var progress = new Progress<DailyUpdateProgress>(OnDailyUpdateProgress);
             result = await _dailyUpdateService.RunAsync(progress, cancellationToken);
+            LastUpdatedAtText = $"最終更新日時（JST）: {Jst.ToJst(DateTime.UtcNow):yyyy-MM-dd HH:mm}";
             await ReloadDisplayDataAsync();
 
             var candidates = await _candidateOverviewReader.GetLatestAsync(cancellationToken);
@@ -205,9 +219,30 @@ public sealed class MainWindowViewModel : ObservableObject
         finally
         {
             IsDailyUpdateProgressIndeterminate = false;
+            StopElapsedTimer();
             await ReloadDisplayDataAsync();
         }
     }
+
+    private void StartElapsedTimer()
+    {
+        _dailyUpdateStartedAtUtc = DateTime.UtcNow;
+        ElapsedTimeText = "経過時間: 00:00";
+        _elapsedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _elapsedTimer.Tick += (_, _) => ElapsedTimeText = FormatElapsed(DateTime.UtcNow - _dailyUpdateStartedAtUtc);
+        _elapsedTimer.Start();
+    }
+
+    private void StopElapsedTimer()
+    {
+        _elapsedTimer?.Stop();
+        _elapsedTimer = null;
+        ElapsedTimeText = string.Empty;
+    }
+
+    private static string FormatElapsed(TimeSpan elapsed) => elapsed.TotalHours >= 1
+        ? $"経過時間: {(int)elapsed.TotalHours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}"
+        : $"経過時間: {elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
 
     private void OnDailyUpdateProgress(DailyUpdateProgress progress)
     {

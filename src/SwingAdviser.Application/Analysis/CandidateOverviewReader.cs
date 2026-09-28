@@ -31,8 +31,7 @@ public sealed record CandidateOverview(
     DateTime? AiRequestedAtUtc,
     IReadOnlyList<string> AiPositiveFactors,
     IReadOnlyList<string> AiRiskFactors,
-    IReadOnlyList<string> AiInvalidationConditions,
-    IReadOnlyList<string> AiReferenceUrls);
+    IReadOnlyList<string> AiInvalidationConditions);
 
 /// <summary>
 /// 候補タブの表示専用読み取り。最新評価日の候補だけをスコア降順で返す。参考損切ラインは表示用の計算値であり、
@@ -107,8 +106,7 @@ public sealed class CandidateOverviewReader(IDbContextFactory<SwingAdviserDbCont
                 aiEvaluation?.RequestedAtUtc,
                 aiEvaluation?.PositiveFactors ?? [],
                 aiEvaluation?.RiskFactors ?? [],
-                aiEvaluation?.InvalidationConditions ?? [],
-                aiEvaluation?.ReferenceUrls ?? []));
+                aiEvaluation?.InvalidationConditions ?? []));
         }
 
         return results;

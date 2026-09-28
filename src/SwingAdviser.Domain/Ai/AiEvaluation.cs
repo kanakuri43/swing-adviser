@@ -11,7 +11,6 @@ public class AiEvaluation
     private readonly List<string> _positiveFactors = [];
     private readonly List<string> _riskFactors = [];
     private readonly List<string> _invalidationConditions = [];
-    private readonly List<string> _referenceUrls = [];
 
     private AiEvaluation()
     {
@@ -53,8 +52,6 @@ public class AiEvaluation
 
     public IReadOnlyList<string> InvalidationConditions => _invalidationConditions;
 
-    public IReadOnlyList<string> ReferenceUrls => _referenceUrls;
-
     public static AiEvaluation Create(string stockCode, TradeDirection? direction, DateTime nowUtc)
     {
         if (string.IsNullOrWhiteSpace(stockCode))
@@ -83,7 +80,6 @@ public class AiEvaluation
         IEnumerable<string> positiveFactors,
         IEnumerable<string> riskFactors,
         IEnumerable<string> invalidationConditions,
-        IEnumerable<string> referenceUrls,
         DateTime nowUtc)
     {
         if (Status != AiEvaluationStatus.Running)
@@ -98,7 +94,6 @@ public class AiEvaluation
         _positiveFactors.AddRange(positiveFactors);
         _riskFactors.AddRange(riskFactors);
         _invalidationConditions.AddRange(invalidationConditions);
-        _referenceUrls.AddRange(referenceUrls);
         CompletedAtUtc = nowUtc;
     }
 

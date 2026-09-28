@@ -21,12 +21,10 @@ public sealed class AiEvaluationConfiguration : IEntityTypeConfiguration<AiEvalu
         MapStringListField(builder, "_positiveFactors", "positive_factors");
         MapStringListField(builder, "_riskFactors", "risk_factors");
         MapStringListField(builder, "_invalidationConditions", "invalidation_conditions");
-        MapStringListField(builder, "_referenceUrls", "reference_urls");
 
         builder.Ignore(a => a.PositiveFactors);
         builder.Ignore(a => a.RiskFactors);
         builder.Ignore(a => a.InvalidationConditions);
-        builder.Ignore(a => a.ReferenceUrls);
     }
 
     private static void MapStringListField(EntityTypeBuilder<AiEvaluation> builder, string fieldName, string columnName)

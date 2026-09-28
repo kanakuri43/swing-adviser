@@ -77,11 +77,11 @@ public class CandidateOverviewReaderTests
 
             var older = AiEvaluation.Create("1111", TradeDirection.Long, NowUtc.AddHours(-2));
             older.MarkRunning(NowUtc.AddHours(-1));
-            older.MarkSucceeded(AiVerdict.Bearish, ConfidenceLevel.Low, "古い結果", [], [], [], [], NowUtc.AddHours(-1));
+            older.MarkSucceeded(AiVerdict.Bearish, ConfidenceLevel.Low, "古い結果", [], [], [], NowUtc.AddHours(-1));
 
             var newer = AiEvaluation.Create("1111", TradeDirection.Long, NowUtc);
             newer.MarkRunning(NowUtc.AddMinutes(1));
-            newer.MarkSucceeded(AiVerdict.Bullish, ConfidenceLevel.High, "新しい結果", ["好材料"], [], [], [], NowUtc.AddMinutes(2));
+            newer.MarkSucceeded(AiVerdict.Bullish, ConfidenceLevel.High, "新しい結果", ["好材料"], [], [], NowUtc.AddMinutes(2));
 
             context.AiEvaluations.AddRange(older, newer);
             await context.SaveChangesAsync();

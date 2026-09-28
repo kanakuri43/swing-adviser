@@ -114,7 +114,7 @@ public class AiEvaluationServiceTests
             running.MarkRunning(NowUtc.UtcDateTime);
             var succeeded = AiEvaluation.Create("3333", null, NowUtc.UtcDateTime);
             succeeded.MarkRunning(NowUtc.UtcDateTime);
-            succeeded.MarkSucceeded(AiVerdict.Neutral, ConfidenceLevel.Medium, "ok", [], [], [], [], NowUtc.UtcDateTime);
+            succeeded.MarkSucceeded(AiVerdict.Neutral, ConfidenceLevel.Medium, "ok", [], [], [], NowUtc.UtcDateTime);
 
             context.AiEvaluations.AddRange(pending, running, succeeded);
             await context.SaveChangesAsync();
@@ -239,7 +239,6 @@ public class AiEvaluationServiceTests
         null,
         null,
         aiRequestedAtUtc,
-        [],
         [],
         [],
         []);

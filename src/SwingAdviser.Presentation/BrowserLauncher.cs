@@ -3,7 +3,7 @@ using System.Windows;
 
 namespace SwingAdviser.Presentation;
 
-/// <summary>既定ブラウザでURLを開く。AI評価が出力するURLは外部由来のため、http/https以外は開かない
+/// <summary>既定ブラウザでURLを開く。http/https以外は開かない
 /// （UseShellExecuteでファイル・コマンドが誤って実行されるのを防ぐ）。</summary>
 public static class BrowserLauncher
 {

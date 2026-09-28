@@ -13,8 +13,7 @@ public class AiResponseParserTests
           "summary": "上昇トレンドが継続する見通し。",
           "positiveFactors": ["出来高増加"],
           "riskFactors": ["決算控え"],
-          "invalidationConditions": ["EMA20を明確に割り込む"],
-          "referenceUrls": ["https://example.com/a", "not-a-url", "ftp://example.com/b"]
+          "invalidationConditions": ["EMA20を明確に割り込む"]
         }
         """;
 
@@ -30,14 +29,6 @@ public class AiResponseParserTests
         Assert.Equal(["出来高増加"], result.PositiveFactors);
         Assert.Equal(["決算控え"], result.RiskFactors);
         Assert.Equal(["EMA20を明確に割り込む"], result.InvalidationConditions);
-    }
-
-    [Fact]
-    public void Parse_FiltersOutNonHttpUrls()
-    {
-        var result = AiResponseParser.Parse(ValidJson);
-
-        Assert.Equal(["https://example.com/a"], result.ReferenceUrls);
     }
 
     [Fact]

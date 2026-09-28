@@ -20,7 +20,6 @@ public class AiEvaluationTests
             ["好材料"],
             ["リスク"],
             ["無効化条件"],
-            ["https://example.com"],
             NowUtc.AddMinutes(2));
 
         Assert.Equal(AiEvaluationStatus.Succeeded, evaluation.Status);
@@ -44,7 +43,7 @@ public class AiEvaluationTests
         var evaluation = AiEvaluation.Create("7203", null, NowUtc);
 
         Assert.Throws<InvalidOperationException>(() =>
-            evaluation.MarkSucceeded(AiVerdict.Neutral, ConfidenceLevel.Medium, "s", [], [], [], [], NowUtc));
+            evaluation.MarkSucceeded(AiVerdict.Neutral, ConfidenceLevel.Medium, "s", [], [], [], NowUtc));
     }
 
     [Theory]
@@ -57,7 +56,7 @@ public class AiEvaluationTests
 
         if (terminalStatus == AiEvaluationStatus.Succeeded)
         {
-            evaluation.MarkSucceeded(AiVerdict.Neutral, ConfidenceLevel.Medium, "s", [], [], [], [], NowUtc);
+            evaluation.MarkSucceeded(AiVerdict.Neutral, ConfidenceLevel.Medium, "s", [], [], [], NowUtc);
         }
         else
         {

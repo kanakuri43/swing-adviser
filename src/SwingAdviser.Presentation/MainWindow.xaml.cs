@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Navigation;
 using MahApps.Metro.Controls;
 using SwingAdviser.Application.Positions;
 using SwingAdviser.Presentation.ViewModels;
@@ -77,12 +76,6 @@ public partial class MainWindow : MetroWindow
         }
 
         BrowserLauncher.Open(BrowserLauncher.YahooFinanceChartUri(candidate.StockCode));
-    }
-
-    private void ReferenceUrlRequestNavigate(object sender, RequestNavigateEventArgs e)
-    {
-        BrowserLauncher.Open(e.Uri);
-        e.Handled = true;
     }
 
     private static T? FindAncestorOrSelf<T>(DependencyObject? element) where T : DependencyObject

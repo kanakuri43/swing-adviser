@@ -29,7 +29,6 @@ namespace SwingAdviser.Infrastructure.Migrations
                     error_message = table.Column<string>(type: "TEXT", nullable: true),
                     invalidation_conditions = table.Column<string>(type: "TEXT", nullable: false),
                     positive_factors = table.Column<string>(type: "TEXT", nullable: false),
-                    reference_urls = table.Column<string>(type: "TEXT", nullable: false),
                     risk_factors = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>

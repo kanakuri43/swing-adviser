@@ -13,11 +13,10 @@ public sealed record AiResponseParseResult(
     IReadOnlyList<string> PositiveFactors,
     IReadOnlyList<string> RiskFactors,
     IReadOnlyList<string> InvalidationConditions,
-    IReadOnlyList<string> ReferenceUrls,
     string? FailureReason)
 {
     public static AiResponseParseResult Failure(string reason) =>
-        new(false, default, default, string.Empty, [], [], [], [], reason);
+        new(false, default, default, string.Empty, [], [], [], reason);
 
     public static AiResponseParseResult Ok(
         AiVerdict verdict,
@@ -25,9 +24,8 @@ public sealed record AiResponseParseResult(
         string summary,
         IReadOnlyList<string> positiveFactors,
         IReadOnlyList<string> riskFactors,
-        IReadOnlyList<string> invalidationConditions,
-        IReadOnlyList<string> referenceUrls) =>
-        new(true, verdict, confidence, summary, positiveFactors, riskFactors, invalidationConditions, referenceUrls, null);
+        IReadOnlyList<string> invalidationConditions) =>
+        new(true, verdict, confidence, summary, positiveFactors, riskFactors, invalidationConditions, null);
 }
 
 /// <summary>
@@ -84,19 +82,13 @@ public static class AiResponseParser
             return AiResponseParseResult.Failure($"confidenceの値が不正です: {raw.Confidence}");
         }
 
-        var referenceUrls = (raw.ReferenceUrls ?? [])
-            .Where(url => Uri.TryCreate(url, UriKind.Absolute, out var uri)
-                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
-            .ToArray();
-
         return AiResponseParseResult.Ok(
             verdict,
             confidence,
             raw.Summary.Trim(),
             raw.PositiveFactors ?? [],
             raw.RiskFactors ?? [],
-            raw.InvalidationConditions ?? [],
-            referenceUrls);
+            raw.InvalidationConditions ?? []);
     }
 
     private static bool TryParseEnum<TEnum>(string? value, out TEnum result) where TEnum : struct, Enum
@@ -126,8 +118,5 @@ public static class AiResponseParser
 
         [JsonPropertyName("invalidationConditions")]
         public List<string>? InvalidationConditions { get; set; }
-
-        [JsonPropertyName("referenceUrls")]
-        public List<string>? ReferenceUrls { get; set; }
     }
 }
