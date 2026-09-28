@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SwingAdviser.Domain\SwingAdviser.Domain.csproj" />
+    <ProjectReference Include="..\SwingAdviser.Infrastructure\SwingAdviser.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

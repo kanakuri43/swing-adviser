@@ -11,50 +11,11 @@ public class CandidateScannerTests
 
     private static StrategyParameters TestStrategyParameters() => TestFixtures.DefaultStrategyParameters();
 
-    /// <summary>緩やかな上昇トレンド→押し目→反発のV字を作る。反発の途中でMACDのゴールデンクロスが起きる想定。</summary>
-    private static List<DailyBar> BuildTrendWithPullbackAndRecovery(string stockCode)
-    {
-        var bars = new List<DailyBar>();
-        var date = new DateOnly(2024, 1, 1);
-        var price = 1000m;
-        const int totalDays = 260;
-        const int recoveryDays = 25;
-        const int pullbackDays = 20;
-        var pullbackStart = totalDays - recoveryDays - pullbackDays;
+    private static List<DailyBar> BuildTrendWithPullbackAndRecovery(string stockCode) =>
+        TestFixtures.BuildTrendWithPullbackAndRecovery(stockCode);
 
-        for (var i = 0; i < totalDays; i++)
-        {
-            decimal step = i < pullbackStart ? 3m
-                : i < pullbackStart + pullbackDays ? -3m
-                : 4m;
-
-            price += step;
-            var close = price;
-            var open = price - (step / 2m);
-            var high = Math.Max(open, close) + 3m;
-            var low = Math.Min(open, close) - 3m;
-
-            bars.Add(new DailyBar(stockCode, date.AddDays(i), open, high, low, close, 200_000L));
-        }
-
-        return bars;
-    }
-
-    private static int FindFreshGoldenCrossIndex(IReadOnlyList<DailyBar> bars, StrategyParameters parameters)
-    {
-        var closes = bars.Select(b => b.Close).ToArray();
-        var macd = TechnicalIndicators.Macd(closes, parameters.Indicators.MacdFastPeriod, parameters.Indicators.MacdSlowPeriod, parameters.Indicators.MacdSignalPeriod);
-
-        for (var i = closes.Length - 1; i >= parameters.Indicators.MacdSlowPeriod; i--)
-        {
-            if (macd.Line[i] > macd.Signal[i] && macd.Line[i - 1] <= macd.Signal[i - 1])
-            {
-                return i;
-            }
-        }
-
-        throw new InvalidOperationException("合成データにゴールデンクロスが見つかりませんでした。BuildTrendWithPullbackAndRecoveryの調整が必要です。");
-    }
+    private static int FindFreshGoldenCrossIndex(IReadOnlyList<DailyBar> bars, StrategyParameters parameters) =>
+        TestFixtures.FindFreshGoldenCrossIndex(bars, parameters);
 
     [Fact]
     public void Evaluate_FreshGoldenCrossInUptrend_ReturnsLongCandidateWithConsistentScore()

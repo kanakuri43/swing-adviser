@@ -189,6 +189,23 @@ public class Position
         UpdatedAtUtc = nowUtc;
     }
 
+    /// <summary>未確認だった信用返済期限を後から入力する。新規約定にのみ設定できる。</summary>
+    public void SetMarginDueDate(Execution execution, DateOnly marginDueDate, DateTime nowUtc)
+    {
+        if (!_executions.Contains(execution))
+        {
+            throw new InvalidOperationException("このポジションに属さない約定です。");
+        }
+
+        if (execution.Side != ExecutionSide.Open)
+        {
+            throw new InvalidOperationException("信用返済期限は新規約定にのみ設定できます。");
+        }
+
+        execution.SetMarginDueDate(marginDueDate);
+        UpdatedAtUtc = nowUtc;
+    }
+
     private void EnsureOpen()
     {
         if (Status == PositionStatus.Closed)

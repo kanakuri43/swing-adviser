@@ -58,6 +58,8 @@ public class Execution
 
     internal void ApplySplit(decimal ratio) => SplitFactor *= ratio;
 
+    internal void SetMarginDueDate(DateOnly marginDueDate) => MarginDueDate = marginDueDate;
+
     internal void Correct(decimal price, int quantity, DateTime executedAtUtc, string reason, DateTime nowUtc)
     {
         if (string.IsNullOrWhiteSpace(reason))

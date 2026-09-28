@@ -51,6 +51,26 @@ public class DailyBar
 
     public long Volume { get; private set; }
 
+    /// <summary>Yahoo Financeからの再取得で同一(銘柄,取引日)の値を上書きする（訂正値の取り込み）。</summary>
+    public void Update(decimal open, decimal high, decimal low, decimal close, long volume)
+    {
+        if (high < low)
+        {
+            throw new ArgumentException("高値は安値以上である必要があります。");
+        }
+
+        if (volume < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(volume));
+        }
+
+        Open = open;
+        High = high;
+        Low = low;
+        Close = close;
+        Volume = volume;
+    }
+
     /// <summary>ratio=2 は1:2分割（株数2倍）、ratio=0.1 は10:1併合（株数1/10）を表す。</summary>
     public void ApplySplit(decimal ratio)
     {

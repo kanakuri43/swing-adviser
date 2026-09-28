@@ -53,33 +53,39 @@
 - [x] 単一の `InitialCreate` マイグレーションのみ作成（要件固まるまで追加マイグレーションを積まない）— `dotnet ef migrations list`で1件のみ確認済み
 
 ## Phase 6: Infrastructure — Codex CLI連携
-- [ ] `CodexCliExecutor`（外部プロセス実行、timeout/実行パス/並列数は設定値化）
-- [ ] `CodexCliPathResolver`
-- [ ] 1件の失敗が他候補の実行・テクニカル結果を無効化しないことの実装
+- [x] `CodexCliExecutor`（外部プロセス実行、timeout/実行パス/並列数は設定値化）— `ExecutablePath`が空なら`CodexCliPathResolver`で解決。`--skip-git-repo-check`/`--sandbox read-only`/`--ephemeral`をterraになかった追加フラグとして付与（EXEディレクトリはgit管理外、調査専用でファイル書込・セッション蓄積をさせないため）
+- [x] `CodexCliPathResolver`（terraのnpm vendorパス探索をそのまま移植。現行codex-cli 0.147.0で実在パスを確認済み）
+- [x] 1件の失敗が他候補の実行・テクニカル結果を無効化しないことの実装 — `ExecuteAsync`は起動失敗/timeout/非ゼロ終了を例外にせず`AiCliResult`として返す。並列数は`SemaphoreSlim(MaxParallelism)`で制御。テクニカル結果（`CandidateEvaluation`/`HoldingEvaluation`）と`AiEvaluation`はPhase1から別行のため構造上も独立
 
 ## Phase 7: Application — ユースケース
-- [ ] 日次更新（終値・出来高取得 → 全銘柄スキャン → 候補抽出 → 保有ポジション再評価）
-- [ ] 約定手入力ユースケース（確認画面あり、候補一覧からの自動確定UIを作らない）
-- [ ] AI総合評価実行（候補一覧から選択して個別実行）
-- [ ] 過去日の計算にその日より後の情報を混入させないことをユースケース層で担保
+- [x] 日次更新（終値・出来高取得 → 全銘柄スキャン → 候補抽出 → 保有ポジション再評価）— `StockMasterSynchronizer`/`DailyBarSynchronizer`/`DailyUpdateService`。依存方向をApplication→Infrastructureに反転し、Infrastructure→Applicationの未使用参照を外した
+  - 分割・併合は保存済みバーと保有中ポジションへ乗除算のみで換算。効力発生日以後の約定を含むポジションは自動換算せず警告を返す
+  - 取得対象は保有中銘柄∪（バー無し／再取得間隔超過／流動性フィルタ通過）の銘柄。1銘柄の取得失敗は理由付きで記録し他銘柄を止めない。地合い指数(1306)の取得失敗のみ日次更新全体を中断する
+- [x] 約定手入力ユースケース（確認画面あり、候補一覧からの自動確定UIを作らない）— `ExecutionEntryService`。プレビュー（未保存）→確定（保存）の2段構成。信用返済期限は`Position.SetMarginDueDate`で後から入力できるようにした（Domain追加）
+- [x] AI総合評価実行（候補一覧から選択して個別実行）— `AiEvaluationService`。1件ごとに独立したDbContextとtry/catchで処理し、1件の失敗が他候補を無効化しない。`AiPromptBuilder`/`AiResponseParser`を分離
+- [x] 過去日の計算にその日より後の情報を混入させないことをユースケース層で担保 — バー読み込みを`BarRepository.LoadBarsAsOfAsync`の1か所に集約（`TradeDate <= asOfDate`のみ）。約定手入力のATRは約定日より前のバーのみで計算
 
 ## Phase 8: Presentation — 基盤
-- [ ] WPF + MVVM + MahApps.Metro シェル、3タブ構成（候補/保有/履歴）
-- [ ] code-behindに業務ロジックを書かない
-- [ ] 長時間処理（更新処理・AI実行）の非同期化：進捗表示・多重実行防止・キャンセル
+- [x] WPF + MVVM + MahApps.Metro シェル、3タブ構成（候補/保有/履歴）— 各タブの中身はプレースホルダのみ（Phase 9で実装）
+- [x] code-behindに業務ロジックを書かない — `MainWindow.xaml.cs`はDataContext設定とLoadedからの`InitializeAsync()`呼び出しのみ。進捗解釈・完了/失敗文言・起動時回復はすべて`MainWindowViewModel`
+- [x] 長時間処理（更新処理・AI実行）の非同期化：進捗表示・多重実行防止・キャンセル — 再利用可能な`AsyncRelayCommand`（`IsRunning`でCanExecuteを制御、`CancellationTokenSource`、`Faulted`イベントで未処理例外を隔離）を新設し、Phase 9のAI評価実行ボタンでも同じ形を使う想定。「日次更新」ボタンは実際にYahoo/JPX取得→候補抽出→保有再評価まで動作確認済み
+  - DI配線: `AddDbContext`を`AddDbContextFactory`に変更（Applicationサービスが要求する`IDbContextFactory`のため）。Phase6/7で作った各サービスをsingleton登録
+  - 実機確認で`ProgressBar.Value`のバインドがデフォルトTwoWayのため読み取り専用プロパティに対して`XamlParseException`を起こす不具合を発見・修正（`Mode=OneWay`を明示）
 
 ## Phase 9: Presentation — 各タブ
-- [ ] 候補タブ（Long/Short一覧、スコア・信頼度ラベル・指標値・参考損切幅、AI評価トリガー）
-- [ ] 保有タブ（Exit/TakeProfit/Hold表示、信用返済期限接近の警告、期限未入力＝「未確認」表示）
-- [ ] 履歴タブ（約定手入力フォーム＋確認画面）
-- [ ] AI総合評価結果表示（BUY/SELL推奨ではなく相場見通しである旨を明示、利益保証表現をしない）
+- [x] 候補タブ（Long/Short一覧、スコア・信頼度ラベル・指標値・参考損切幅、AI評価トリガー）— `CandidateOverviewReader`（表示専用読み取り、書き込み側のDailyUpdateServiceとは別）＋`CandidateRow`（1行ごとに`AsyncRelayCommand`でAI評価を実行、多重実行防止はコマンド自身のIsRunningで完結）
+- [x] 保有タブ（Exit/TakeProfit/Hold表示、信用返済期限接近の警告、期限未入力＝「未確認」表示）— `HoldingOverviewReader`。残営業日は土日のみ除外する簡易カウント（JPX休場日カレンダーは持たない、警告用の目安と割り切った）
+- [x] 履歴タブ（約定手入力フォーム＋確認画面）— `OpenPositionWindow`/`AddExecutionWindow`（各プレビュー→確認→保存の2段ViewModel）。候補・保有タブからは銘柄・方向・対象ポジションIDの入力補助のみを渡す
+- [x] AI総合評価結果表示（BUY/SELL推奨ではなく相場見通しである旨を明示、利益保証表現をしない）— 候補タブの選択行詳細パネルに明示文言を固定表示
+
+読み取り側3サービス（`CandidateOverviewReader`/`HoldingOverviewReader`/`ExecutionOverviewReader`）はPhase7の書き込み側サービスと対で追加し、同じ`SqliteInMemoryContextFactory`パターンでテストした。実機起動でXAMLバインディングエラーが出ないことを確認済み（3タブとも表示される。複数モニタ環境での自動クリック操作は今回の環境では安定せず、対話的な全ボタンのクリック確認までは行えていない — 手動での最終確認を推奨）。
 
 ## Phase 10: 検証
-- [ ] `dotnet restore` / `dotnet build` / `dotnet test` が通ること
-- [ ] 過去日シグナル計算への未来データ混入がないことのテスト
-- [ ] 約定履歴が自動生成されないことのテスト
-- [ ] Long/Short対称性テスト
-- [ ] リスク判定の優先順位テスト（損切>時間ストップ>Exit>利確>Hold）
-- [ ] 分割前後の価格・株数・ATR単位整合テスト
-- [ ] 期待値を本体と同じ計算式で再計算するだけの無意味なテストを書いていないか確認
-- [ ] テーブル数が35を超えていないか確認（目安15前後）
+- [x] `dotnet restore` / `dotnet build` / `dotnet test` が通ること — 167件全て成功
+- [x] 過去日シグナル計算への未来データ混入がないことのテスト — `TechnicalIndicatorsTests.Indicators_AppendingFutureBars_DoesNotChangeEarlierValues`（Domain）、`DailyUpdateServiceTests.EvaluateAsync_FutureBarsDoNotAffectPastEvaluationDate`（Application）
+- [x] 約定履歴が自動生成されないことのテスト — `DailyUpdateServiceTests.RunAsync_DoesNotCreatePositionsOrExecutions`
+- [x] Long/Short対称性テスト — `CandidateScannerTests.Evaluate_ReflectedPriceAxis_...`、`HoldingRiskEvaluatorTests.Evaluate_ReflectedPriceAxis_...`
+- [x] リスク判定の優先順位テスト（損切>時間ストップ>Exit>利確>Hold）— `HoldingRiskEvaluatorTests`に隣接優先度が同時成立するケースを3本（StopLoss/TimeStop両立→StopLoss勝ち、等）＋境界値テスト
+- [x] 分割前後の価格・株数・ATR単位整合テスト — `DailyBarTests`/`PositionTests`のApplySplit系、`DailyBarSynchronizerTests`（保存済みバー・保有ポジションへの伝播）
+- [x] 期待値を本体と同じ計算式で再計算するだけの無意味なテストを書いていないか確認 — 全テストを監査し、`TechnicalIndicatorsTests.Macd_SignalSeed_ExcludesUndefinedLeadingValues`が本体と同じ再帰式をテスト内で再実装していた1件のみ該当。EMA自体の再帰式検証は`Ema_MatchesHandComputedSeedAndRecursion`（手計算のリテラル値）が既に独立にカバー済みのため、Macd固有の境界（未定義区間・シグナルの種の扱い・Histogram=Line−Signatureの整合性）だけを見るよう書き直した。他に該当なし
+- [x] テーブル数が35を超えていないか確認（目安15前後）— 7テーブル（ai_evaluations/candidate_evaluations/daily_bars/holding_evaluations/positions/stocks/executions）、`InitialCreate`マイグレーション1件のみ

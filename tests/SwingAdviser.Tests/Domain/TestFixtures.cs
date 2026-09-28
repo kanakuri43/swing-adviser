@@ -1,10 +1,11 @@
+using SwingAdviser.Domain.Analysis;
 using SwingAdviser.Domain.MarketData;
 using SwingAdviser.Domain.Strategy;
 
 namespace SwingAdviser.Tests.Domain;
 
 /// <summary>複数のテストクラスで使う共通のStrategyParameters既定値と合成バー生成ヘルパー。</summary>
-internal static class TestFixtures
+public static class TestFixtures
 {
     public static StrategyParameters DefaultStrategyParameters() => new()
     {
@@ -62,5 +63,51 @@ internal static class TestFixtures
         return bars
             .Select(b => new DailyBar(stockCode, b.TradeDate, axis - b.Open, axis - b.Low, axis - b.High, axis - b.Close, b.Volume))
             .ToList();
+    }
+
+    /// <summary>緩やかな上昇トレンド→押し目→反発のV字を作る。反発の途中でMACDのゴールデンクロスが起きる想定。</summary>
+    public static List<DailyBar> BuildTrendWithPullbackAndRecovery(string stockCode, DateOnly? startDate = null)
+    {
+        var bars = new List<DailyBar>();
+        var date = startDate ?? new DateOnly(2024, 1, 1);
+        var price = 1000m;
+        const int totalDays = 260;
+        const int recoveryDays = 25;
+        const int pullbackDays = 20;
+        var pullbackStart = totalDays - recoveryDays - pullbackDays;
+
+        for (var i = 0; i < totalDays; i++)
+        {
+            decimal step = i < pullbackStart ? 3m
+                : i < pullbackStart + pullbackDays ? -3m
+                : 4m;
+
+            price += step;
+            var close = price;
+            var open = price - (step / 2m);
+            var high = Math.Max(open, close) + 3m;
+            var low = Math.Min(open, close) - 3m;
+
+            bars.Add(new DailyBar(stockCode, date.AddDays(i), open, high, low, close, 200_000L));
+        }
+
+        return bars;
+    }
+
+    /// <summary>直近側から遡って最初に見つかるゴールデンクロス（当日）のインデックスを返す。</summary>
+    public static int FindFreshGoldenCrossIndex(IReadOnlyList<DailyBar> bars, StrategyParameters parameters)
+    {
+        var closes = bars.Select(b => b.Close).ToArray();
+        var macd = TechnicalIndicators.Macd(closes, parameters.Indicators.MacdFastPeriod, parameters.Indicators.MacdSlowPeriod, parameters.Indicators.MacdSignalPeriod);
+
+        for (var i = closes.Length - 1; i >= parameters.Indicators.MacdSlowPeriod; i--)
+        {
+            if (macd.Line[i] > macd.Signal[i] && macd.Line[i - 1] <= macd.Signal[i - 1])
+            {
+                return i;
+            }
+        }
+
+        throw new InvalidOperationException("合成データにゴールデンクロスが見つかりませんでした。BuildTrendWithPullbackAndRecoveryの調整が必要です。");
     }
 }

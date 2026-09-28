@@ -6,8 +6,220 @@
         xmlns:local="clr-namespace:SwingAdviser.Presentation"
         xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
         mc:Ignorable="d"
-        Title="SwingAdviser" Height="450" Width="800">
-    <Grid>
+        Title="{Binding Title}" Height="700" Width="1200"
+        WindowStartupLocation="CenterScreen">
+    <mah:MetroWindow.Resources>
+        <Style x:Key="MutedText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource MahApps.Brushes.Gray2}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="RightAlignedGridText" TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="TextAlignment" Value="Right" />
+        </Style>
+        <Style x:Key="ProfitAndLossGridText" TargetType="TextBlock" BasedOn="{StaticResource RightAlignedGridText}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding ProfitAndLossState}" Value="Profit">
+                    <Setter Property="Foreground" Value="#FF25833D" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding ProfitAndLossState}" Value="Loss">
+                    <Setter Property="Foreground" Value="#FFC73535" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="MarginDueGridText" TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding MarginDueStatusName}" Value="Unconfirmed">
+                    <Setter Property="Foreground" Value="#FF9B6B00" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding MarginDueStatusName}" Value="Warning">
+                    <Setter Property="Foreground" Value="#FFC77800" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding MarginDueStatusName}" Value="Overdue">
+                    <Setter Property="Foreground" Value="#FFC73535" />
+                    <Setter Property="FontWeight" Value="Bold" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </mah:MetroWindow.Resources>
 
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Padding="10" CornerRadius="4" Background="{DynamicResource MahApps.Brushes.Gray9}">
+            <TextBlock Style="{StaticResource MutedText}" Text="{Binding SafetyNotice}" />
+        </Border>
+
+        <Grid Grid.Row="1" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Padding="12,5" Content="日次更新"
+                    Command="{Binding RunDailyUpdateCommand}"
+                    ToolTip="株価取得・候補抽出・保有再評価を実行します。証券会社への発注は行いません。" />
+            <Button Grid.Column="1" Margin="8,0,0,0" Padding="12,5" Content="中止"
+                    Command="{Binding CancelDailyUpdateCommand}"
+                    IsEnabled="{Binding RunDailyUpdateCommand.IsRunning}" />
+        </Grid>
+
+        <StackPanel Grid.Row="2" Margin="0,10,0,0">
+            <DockPanel LastChildFill="False">
+                <TextBlock FontWeight="SemiBold" Text="{Binding DailyUpdateStageText}" />
+                <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold" Text="{Binding StatusMessage}" />
+            </DockPanel>
+            <ProgressBar Height="10" Margin="0,4,0,0" Minimum="0" Maximum="100"
+                         IsIndeterminate="{Binding IsDailyUpdateProgressIndeterminate}"
+                         Value="{Binding DailyUpdateProgressPercent, Mode=OneWay}" />
+        </StackPanel>
+
+        <TabControl Grid.Row="3" Margin="0,12,0,0">
+            <TabItem Header="候補">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="2*" />
+                        <RowDefinition Height="3*" />
+                    </Grid.RowDefinitions>
+                    <DataGrid AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
+                              CanUserAddRows="False" CanUserDeleteRows="False" ItemsSource="{Binding Candidates}"
+                              SelectedItem="{Binding SelectedCandidate, Mode=TwoWay}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Width="70" Binding="{Binding StockCode}" Header="コード" />
+                            <DataGridTextColumn Width="150" Binding="{Binding StockName}" Header="銘柄名" />
+                            <DataGridTextColumn Width="70" Binding="{Binding Direction}" Header="方向" />
+                            <DataGridTextColumn Width="60" Binding="{Binding Score}" Header="スコア" />
+                            <DataGridTextColumn Width="80" Binding="{Binding Confidence}" Header="信頼度" />
+                            <DataGridTextColumn Width="90" Binding="{Binding Close, StringFormat=N1}" Header="終値" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="100" Binding="{Binding ReferenceStopLossPrice, StringFormat=N1}" Header="参考損切ライン" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="80" Binding="{Binding AiStatusText}" Header="AI状態" />
+                            <DataGridTextColumn Width="90" Binding="{Binding AiVerdictText}" Header="AI Verdict" />
+                            <DataGridTemplateColumn Width="100" Header="AI評価">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Padding="8,3" Command="{Binding RunAiEvaluationCommand}" Content="実行"
+                                                ToolTip="Codex CLIで追加調査を実行します。結果は相場見通しの参考情報です。" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Width="120" Header="約定">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Padding="8,3" Click="OpenPositionFromCandidateClick" Content="約定を手入力" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Border Grid.Row="1" Margin="0,8,0,0" Padding="12" Background="{DynamicResource MahApps.Brushes.Gray9}" CornerRadius="3">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ContentControl Content="{Binding SelectedCandidate}">
+                                <ContentControl.ContentTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock FontWeight="SemiBold" FontSize="15" Text="AI総合評価の結果（参考情報）" />
+                                            <TextBlock Margin="0,4,0,0" Style="{StaticResource MutedText}"
+                                                       Text="これは相場見通しの参考情報であり、売買（BUY/SELL）の推奨ではありません。利益を保証するものではありません。" />
+                                            <TextBlock Margin="0,8,0,0" Text="{Binding AiSummary, TargetNullValue=AI評価はまだ実行されていません。}" TextWrapping="Wrap" />
+                                            <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding AiPositiveFactors}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate><TextBlock Text="{Binding StringFormat=好材料: {0}}" TextWrapping="Wrap" /></DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <ItemsControl Margin="0,4,0,0" ItemsSource="{Binding AiRiskFactors}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate><TextBlock Text="{Binding StringFormat=リスク要因: {0}}" TextWrapping="Wrap" /></DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <ItemsControl Margin="0,4,0,0" ItemsSource="{Binding AiInvalidationConditions}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate><TextBlock Text="{Binding StringFormat=無効化条件: {0}}" TextWrapping="Wrap" /></DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ContentControl.ContentTemplate>
+                            </ContentControl>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="保有">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <DataGrid AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" CanUserDeleteRows="False" ItemsSource="{Binding Positions}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Width="70" Binding="{Binding StockCode}" Header="コード" />
+                            <DataGridTextColumn Width="140" Binding="{Binding StockName}" Header="銘柄名" />
+                            <DataGridTextColumn Width="70" Binding="{Binding Direction}" Header="方向" />
+                            <DataGridTextColumn Width="90" Binding="{Binding RemainingQuantity, StringFormat=N0}" Header="残数量" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="100" Binding="{Binding AverageEntryPrice, StringFormat=N1}" Header="取得単価" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="100" Binding="{Binding LatestClose, StringFormat=N1}" Header="現在値" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="110" Binding="{Binding CurrentProfitAndLoss, StringFormat=N0}" Header="現在損益" ElementStyle="{StaticResource ProfitAndLossGridText}" />
+                            <DataGridTextColumn Width="110" Binding="{Binding DecisionText}" Header="決済判定" />
+                            <DataGridTextColumn Width="260" Binding="{Binding DecisionReason}" Header="判定根拠" />
+                            <DataGridTextColumn Width="100" Binding="{Binding StopLossPrice, StringFormat=N1}" Header="損切ライン" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="180" Binding="{Binding MarginDueText}" Header="信用返済期限" ElementStyle="{StaticResource MarginDueGridText}" />
+                            <DataGridTemplateColumn Width="140" Header="約定">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Padding="8,3" Click="AddExecutionClick" Content="追加・決済を入力" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Grid.Row="1" Margin="0,8,0,0" Style="{StaticResource MutedText}"
+                               Text="損切・利確・決済判定は判断支援です。自動決済・自動発注は行いません。" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="履歴">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Padding="10,5" Click="OpenPositionBlankClick" Content="新規建てを入力" />
+                    </StackPanel>
+                    <DataGrid Grid.Row="1" Margin="0,8,0,0" AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" CanUserDeleteRows="False" ItemsSource="{Binding Executions}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Width="70" Binding="{Binding StockCode}" Header="コード" />
+                            <DataGridTextColumn Width="70" Binding="{Binding Direction}" Header="方向" />
+                            <DataGridTextColumn Width="70" Binding="{Binding Side}" Header="新規/決済" />
+                            <DataGridTextColumn Width="150" Binding="{Binding ExecutedAtJst, StringFormat=yyyy-MM-dd HH:mm}" Header="約定日時（JST）" />
+                            <DataGridTextColumn Width="100" Binding="{Binding Price, StringFormat=N1}" Header="約定価格" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="90" Binding="{Binding Quantity, StringFormat=N0}" Header="株数" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="150" Binding="{Binding MarginDueDateText}" Header="信用返済期限" />
+                            <DataGridTextColumn Width="100" Binding="{Binding CorrectionText}" Header="訂正" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock Grid.Row="2" Margin="0,8,0,0" Style="{StaticResource MutedText}"
+                               Text="約定履歴は利用者が明示的に入力・確認して登録する監査原票です。BUY/SELLサイン・現在値・AI判定から自動生成しません。" />
+                </Grid>
+            </TabItem>
+        </TabControl>
     </Grid>
 </mah:MetroWindow>

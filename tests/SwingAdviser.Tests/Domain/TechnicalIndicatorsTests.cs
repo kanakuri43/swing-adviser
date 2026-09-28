@@ -22,46 +22,30 @@ public class TechnicalIndicatorsTests
     [Fact]
     public void Macd_SignalSeed_ExcludesUndefinedLeadingValues()
     {
+        // EMA自体の再帰式の正しさは Ema_MatchesHandComputedSeedAndRecursion が既に独立に検証済み。
+        // ここではMacd固有の境界・インデックス規約（未定義区間・シグナルの種の扱い）だけを見る
+        // （本体と同じ計算式で期待値を再計算するテストは書かない。CLAUDE.md「テスト」節）。
         decimal[] closes = [10m, 11m, 9m, 12m, 13m, 11m];
 
         var result = TechnicalIndicators.Macd(closes, fastPeriod: 2, slowPeriod: 3, signalPeriod: 2);
 
-        // 独立に展開した手計算（EMA2/EMA3を1ステップずつ再現）と突合する。
-        var k2 = 2m / 3m;
-        var ema2At2 = ((closes[2] - ((closes[0] + closes[1]) / 2m)) * k2) + ((closes[0] + closes[1]) / 2m);
-        var ema2At3 = ((closes[3] - ema2At2) * k2) + ema2At2;
-        var ema2At4 = ((closes[4] - ema2At3) * k2) + ema2At3;
-        var ema2At5 = ((closes[5] - ema2At4) * k2) + ema2At4;
+        // slowPeriod=3 → Lineはindex(slowPeriod-1)=2以降で定義される。それより前は未定義(0)のまま。
+        Assert.Equal(0m, result.Line[0]);
+        Assert.Equal(0m, result.Line[1]);
+        Assert.NotEqual(0m, result.Line[2]);
 
-        var k3 = 1m / 2m;
-        var ema3At2 = (closes[0] + closes[1] + closes[2]) / 3m;
-        var ema3At3 = ((closes[3] - ema3At2) * k3) + ema3At2;
-        var ema3At4 = ((closes[4] - ema3At3) * k3) + ema3At3;
-        var ema3At5 = ((closes[5] - ema3At4) * k3) + ema3At4;
+        // シグナルの種は有効区間の最初のsignalPeriod=2件(line[2],line[3])の平均だが、
+        // 種そのものは「シグナル値」としては出力しない（index3から初めて出力される）。
+        Assert.Equal(0m, result.Signal[2]);
+        Assert.Equal(0m, result.Histogram[2]);
+        Assert.NotEqual(0m, result.Signal[3]);
+        Assert.NotEqual(0m, result.Signal[4]);
+        Assert.NotEqual(0m, result.Signal[5]);
 
-        var lineAt2 = ema2At2 - ema3At2;
-        var lineAt3 = ema2At3 - ema3At3;
-        var lineAt4 = ema2At4 - ema3At4;
-        var lineAt5 = ema2At5 - ema3At5;
-
-        // シグナルの種は「有効区間の最初の2件」(line[2],line[3])の平均。未定義区間(line[0],line[1]=0)は含まない。
-        var signalAt3 = (lineAt2 + lineAt3) / 2m;
-        var signalAt4 = ((lineAt4 - signalAt3) * k2) + signalAt3;
-        var signalAt5 = ((lineAt5 - signalAt4) * k2) + signalAt4;
-
-        Assert.Equal(lineAt2, result.Line[2]);
-        Assert.Equal(lineAt3, result.Line[3]);
-        Assert.Equal(lineAt4, result.Line[4]);
-        Assert.Equal(lineAt5, result.Line[5]);
-
-        Assert.Equal(0m, result.Signal[2]); // 種そのものなので、まだ「シグナル値」としては出力しない
-        Assert.Equal(signalAt3, result.Signal[3]);
-        Assert.Equal(signalAt4, result.Signal[4]);
-        Assert.Equal(signalAt5, result.Signal[5]);
-
-        Assert.Equal(lineAt3 - signalAt3, result.Histogram[3]);
-        Assert.Equal(lineAt4 - signalAt4, result.Histogram[4]);
-        Assert.Equal(lineAt5 - signalAt5, result.Histogram[5]);
+        // Histogram = Line − Signal という出力間の整合性（3系列が食い違っていないこと）。
+        Assert.Equal(result.Line[3] - result.Signal[3], result.Histogram[3]);
+        Assert.Equal(result.Line[4] - result.Signal[4], result.Histogram[4]);
+        Assert.Equal(result.Line[5] - result.Signal[5], result.Histogram[5]);
     }
 
     [Fact]

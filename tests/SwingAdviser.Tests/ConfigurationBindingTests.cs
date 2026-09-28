@@ -46,7 +46,10 @@ public class ConfigurationBindingTests
         Assert.NotNull(options);
         Assert.Equal(5, options!.YahooFinance.MaxRequestsPerSecond);
         Assert.StartsWith("https://query1.finance.yahoo.com", options.YahooFinance.BaseUrl);
+        Assert.Equal(400, options.YahooFinance.InitialFetchCalendarDays);
+        Assert.Equal("16:00", options.YahooFinance.DailyBarFinalizedTimeJst);
         Assert.StartsWith("https://www.jpx.co.jp", options.Jpx.ListedIssuesUrl);
+        Assert.Equal(7, options.Jpx.RefreshIntervalDays);
     }
 
     [Fact]
@@ -59,6 +62,7 @@ public class ConfigurationBindingTests
         Assert.NotNull(options);
         Assert.Equal(100_000_000m, options!.MinimumAverageTurnoverJpy);
         Assert.Equal(20, options.TurnoverAveragePeriodDays);
+        Assert.Equal(7, options.RecheckIntervalDays);
     }
 
     [Fact]

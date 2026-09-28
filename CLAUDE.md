@@ -93,7 +93,7 @@ terra は「間違えてはいけない」という慎重さのあまり、証�
 ## 技術スタック
 - C# / .NET 10 (LTS) / WPF / MVVM / MahApps.Metro
 - EF Core（マイグレーション管理）/ SQLite 3
-- レイヤ: Domain（外部依存なし）/ Application（ユースケース）/ Infrastructure（HTTP・DB・CLI）/ Presentation（WPF+MVVM、code-behindに業務ロジックを書かない）
+- レイヤ: Domain（外部依存なし）/ Application（ユースケース）/ Infrastructure（HTTP・DB・CLI）/ Presentation（WPF+MVVM、code-behindに業務ロジックを書かない）。依存方向はApplication→Infrastructure（ユースケースが`IDbContextFactory`やYahoo/JPX/Codex CLIクライアントを直接使う。差し替えのための逆方向インターフェースは実際に必要になるまで作らない）
 - 長時間処理（更新処理・AI実行）はUIスレッドをブロックしない。async/await、進捗表示、多重実行防止、キャンセルを備える。
 - インターフェースによる抽象化は、実際に差し替えが必要になってから導入する（先回りして全レイヤをインターフェース化しない）。
 
@@ -146,6 +146,7 @@ dotnet test
 - 変更は目的を満たす最小限に留める。
 - build/test が通らないものを完了として報告しない。
 - **仕様ドキュメントを新設・肥大化させない。** 決定事項はこの `CLAUDE.md` に追記するか、コードと `appsettings.json` の値そのもので表現する。`docs/` フォルダへの分割は、この1ファイルが実際に読みづらくなってから検討する。
+- **git commit メッセージは日本語で書く。**
 
 ## terra から学んだこと
 terra は実装8,810行に対しEF Core Migrationsが39,239行、仕様書が `AGENTS.md` 172行+`docs/`1,538行という規模だった。にもかかわらず、作り込んだ重厚な仕組み（信用コスト台帳、単位ハッシュ検証、多段のpoint-in-time検証、revision/manifest凍結）の多くは実際には機能していなかった（詳細はterraの `docs/*.md` と対比すれば分かる）。
