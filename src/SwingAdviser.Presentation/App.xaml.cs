@@ -24,6 +24,8 @@ namespace SwingAdviser.Presentation;
 public partial class App : System.Windows.Application
 {
     private ServiceProvider? _serviceProvider;
+    private string? _databasePath;
+    private BackupOptions? _backupOptions;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -38,6 +40,8 @@ public partial class App : System.Windows.Application
                 .Build();
 
             var databasePath = DatabasePathResolver.ResolveWritableDatabasePath();
+            _databasePath = databasePath;
+            _backupOptions = configuration.GetSection("Backup").Get<BackupOptions>();
 
             var marketDataOptions = configuration.GetSection("MarketData").Get<MarketDataOptions>()
                 ?? throw new InvalidOperationException("appsettings.json に MarketData セクションがありません。");
@@ -92,7 +96,31 @@ public partial class App : System.Windows.Application
     protected override void OnExit(ExitEventArgs e)
     {
         _serviceProvider?.Dispose();
+        BackupDatabaseOnExit();
         base.OnExit(e);
+    }
+
+    /// <summary>バックアップに失敗しても終了は妨げない。失敗時だけ通知する。</summary>
+    private void BackupDatabaseOnExit()
+    {
+        // 起動に失敗した場合は DB を触っていないのでバックアップしない。
+        if (_serviceProvider is null || _databasePath is null || _backupOptions is null)
+        {
+            return;
+        }
+
+        try
+        {
+            DatabaseBackupService.Backup(_databasePath, _backupOptions, DateOnly.FromDateTime(DateTime.Now));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"データベースのバックアップに失敗しました:\n{ex.Message}",
+                "SwingAdviser",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

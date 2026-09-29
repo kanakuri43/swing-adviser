@@ -66,6 +66,18 @@ public class ConfigurationBindingTests
     }
 
     [Fact]
+    public void BackupOptions_BindsNonDefaultValues()
+    {
+        var configuration = LoadConfiguration();
+
+        var options = configuration.GetSection("Backup").Get<BackupOptions>();
+
+        Assert.NotNull(options);
+        Assert.Equal(@"G:\マイドライブ\SwingAdviser", options!.DestinationDirectory);
+        Assert.Equal(30, options.KeepCount);
+    }
+
+    [Fact]
     public void CodexCliOptions_BindsNonDefaultValues()
     {
         var configuration = LoadConfiguration();
