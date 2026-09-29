@@ -149,19 +149,34 @@ public class AiEvaluationServiceTests
     }
 
     [Fact]
-    public void SelectAutoTargets_OnlyHighConfidenceCandidatesAreSelected()
+    public void SelectAutoTargets_OnlyTopScoredCandidatesAreSelected()
     {
-        var candidates = new[]
-        {
-            BuildOverview("1111", ConfidenceLevel.High),
-            BuildOverview("2222", ConfidenceLevel.Medium),
-            BuildOverview("3333", ConfidenceLevel.Low),
-        };
+        var candidates = Enumerable.Range(1, 12)
+            .Select(i => BuildOverview($"{1000 + i}", ConfidenceLevel.High, score: 70 + i))
+            .ToArray();
 
         var targets = AiEvaluationService.SelectAutoTargets(candidates);
 
-        var target = Assert.Single(targets);
-        Assert.Equal("1111", target.StockCode);
+        Assert.Equal(AiEvaluationService.AutoTargetLimit, targets.Count);
+        Assert.DoesNotContain(targets, t => t.StockCode is "1001" or "1002");
+        Assert.Contains(targets, t => t.StockCode == "1012");
+    }
+
+    [Fact]
+    public void SelectAutoTargets_TopRankAlreadySucceeded_DoesNotPullInRank11()
+    {
+        var evaluationDate = new DateOnly(2026, 1, 10);
+        var candidates = Enumerable.Range(1, 11)
+            .Select(i => i == 11
+                ? BuildOverview("1011", ConfidenceLevel.High, score: 70 + i, evaluationDate: evaluationDate,
+                    aiStatus: AiEvaluationStatus.Succeeded, aiRequestedAtUtc: new DateTime(2026, 1, 10, 8, 0, 0, DateTimeKind.Utc))
+                : BuildOverview($"{1000 + i}", ConfidenceLevel.High, score: 70 + i))
+            .ToArray();
+
+        var targets = AiEvaluationService.SelectAutoTargets(candidates);
+
+        Assert.Equal(9, targets.Count);
+        Assert.DoesNotContain(targets, t => t.StockCode == "1001");
     }
 
     [Fact]
@@ -216,12 +231,13 @@ public class AiEvaluationServiceTests
         ConfidenceLevel confidence,
         DateOnly? evaluationDate = null,
         AiEvaluationStatus? aiStatus = null,
-        DateTime? aiRequestedAtUtc = null) => new(
+        DateTime? aiRequestedAtUtc = null,
+        int score = 80) => new(
         stockCode,
         $"銘柄{stockCode}",
         TradeDirection.Long,
         evaluationDate ?? new DateOnly(2026, 1, 10),
-        80,
+        score,
         confidence,
         1000m,
         1m,

@@ -69,21 +69,17 @@ public sealed class AiEvaluationService(
     }
 
     /// <summary>
-    /// 日次更新後の自動AI評価対象を選ぶ純粋関数。信頼度Highのみ、実行中（Pending/Running）のものを除き、
-    /// 同一評価日以降にすでに成功済みのものは再実行しない（1日に複数回更新した場合の重複実行防止）。
+    /// 日次更新後の自動AI評価対象を選ぶ純粋関数。スコア上位<see cref="AutoTargetLimit"/>件のうち、
+    /// 実行中（Pending/Running）のものを除き、同一評価日以降にすでに成功済みのものは再実行しない
+    /// （1日に複数回更新した場合の重複実行防止。上位N件を先に確定するので、再実行で順位11位以下に波及しない）。
     /// </summary>
     public static IReadOnlyList<AiEvaluationTarget> SelectAutoTargets(IReadOnlyList<CandidateOverview> candidates)
     {
         ArgumentNullException.ThrowIfNull(candidates);
 
         var targets = new List<AiEvaluationTarget>();
-        foreach (var candidate in candidates)
+        foreach (var candidate in SelectTopScored(candidates))
         {
-            if (candidate.Confidence != ConfidenceLevel.High)
-            {
-                continue;
-            }
-
             if (candidate.AiStatus is AiEvaluationStatus.Pending or AiEvaluationStatus.Running)
             {
                 continue;
@@ -108,6 +104,14 @@ public sealed class AiEvaluationService(
 
         return targets;
     }
+
+    /// <summary>日次更新後の自動AI評価の上限件数（スコア上位）。</summary>
+    public const int AutoTargetLimit = 10;
+
+    /// <summary>自動AI評価の母集団（スコア上位<see cref="AutoTargetLimit"/>件。同点は証券コード順）。</summary>
+    public static IReadOnlyList<CandidateOverview> SelectTopScored(IReadOnlyList<CandidateOverview> candidates) =>
+        candidates.OrderByDescending(c => c.Score).ThenBy(c => c.StockCode, StringComparer.Ordinal)
+            .Take(AutoTargetLimit).ToList();
 
     /// <summary>起動時に残っているPending/Runningを中断扱いでFailedにする。呼び出しの配線はPresentation層。</summary>
     public async Task<int> RecoverInterruptedAsync(CancellationToken cancellationToken = default)

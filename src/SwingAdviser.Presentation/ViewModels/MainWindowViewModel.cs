@@ -182,20 +182,20 @@ public sealed class MainWindowViewModel : ObservableObject
             await ReloadDisplayDataAsync();
 
             var candidates = await _candidateOverviewReader.GetLatestAsync(cancellationToken);
-            var highConfidenceCount = candidates.Count(c => c.Confidence == ConfidenceLevel.High);
+            var topScoredCount = AiEvaluationService.SelectTopScored(candidates).Count;
             var autoTargets = AiEvaluationService.SelectAutoTargets(candidates);
-            var autoSkippedCount = highConfidenceCount - autoTargets.Count;
+            var autoSkippedCount = topScoredCount - autoTargets.Count;
 
             AiEvaluationRunResult? autoAiResult = null;
             if (autoTargets.Count > 0)
             {
                 IsDailyUpdateProgressIndeterminate = false;
                 DailyUpdateProgressPercent = 0;
-                DailyUpdateStageText = $"AI総合評価（High候補） 0/{autoTargets.Count}";
+                DailyUpdateStageText = $"AI総合評価（スコア上位） 0/{autoTargets.Count}";
                 var aiProgress = new Progress<AiEvaluationProgress>(p =>
                 {
                     DailyUpdateProgressPercent = 100.0 * p.Completed / p.Total;
-                    DailyUpdateStageText = $"AI総合評価（High候補） {p.Completed}/{p.Total}";
+                    DailyUpdateStageText = $"AI総合評価（スコア上位） {p.Completed}/{p.Total}";
                 });
                 autoAiResult = await _aiEvaluationService.RunAsync(autoTargets, aiProgress, cancellationToken);
             }
@@ -206,7 +206,7 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             StatusMessage = result is null
                 ? "日次更新を中止しました。完了済みの銘柄までの結果は保存されています。"
-                : "日次更新は完了しましたが、AI総合評価（High候補）は中止しました。";
+                : "日次更新は完了しましたが、AI総合評価（スコア上位）は中止しました。";
         }
         catch (Exception exception)
         {
@@ -267,6 +267,6 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         var skippedText = autoAiSkippedCount > 0 ? $"・スキップ{autoAiSkippedCount}件" : string.Empty;
-        return $"{baseMessage} AI総合評価（High候補）成功{autoAiResult.SucceededCount}件・失敗{autoAiResult.FailedCount}件{skippedText}。";
+        return $"{baseMessage} AI総合評価（スコア上位）成功{autoAiResult.SucceededCount}件・失敗{autoAiResult.FailedCount}件{skippedText}。";
     }
 }
