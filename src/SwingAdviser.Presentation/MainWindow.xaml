@@ -191,7 +191,6 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                             <DataGridTextColumn Width="60" Binding="{Binding Score}" Header="スコア" />
-                            <DataGridTextColumn Width="80" Binding="{Binding Confidence}" Header="信頼度" />
                             <DataGridTextColumn Width="90" Binding="{Binding MacdStageText}" Header="MACD状態" />
                             <DataGridTextColumn Width="90" Binding="{Binding Close, StringFormat=N1}" Header="終値" ElementStyle="{StaticResource RightAlignedGridText}" />
                             <DataGridTextColumn Width="100" Binding="{Binding ReferenceStopLossPrice, StringFormat=N1}" Header="参考損切ライン" ElementStyle="{StaticResource RightAlignedGridText}" />
