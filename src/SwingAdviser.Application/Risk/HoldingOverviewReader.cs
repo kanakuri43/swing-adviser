@@ -125,6 +125,16 @@ public sealed class HoldingOverviewReader(
         return results;
     }
 
+    /// <summary>全ポジション（保有中の部分決済ぶんを含む）の実現損益合計。</summary>
+    public async Task<decimal> GetRealizedProfitAndLossAsync(CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var positions = await context.Positions
+            .Include(p => p.Executions)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        return positions.Sum(p => p.RealizedProfitAndLoss);
+    }
+
     private (MarginDueStatus Status, DateOnly? DueDate) ComputeMarginDueStatus(Position position, DateOnly today)
     {
         if (!position.IsMargin)

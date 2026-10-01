@@ -13,6 +13,17 @@ public sealed class ExecutionRow(ExecutionOverview overview)
 
     public string StockCode => Overview.StockCode;
 
+    public string StockName => Overview.StockName;
+
+    public decimal? RealizedProfitAndLoss => Overview.RealizedProfitAndLoss;
+
+    public string ProfitAndLossState => Overview.RealizedProfitAndLoss switch
+    {
+        > 0 => "Profit",
+        < 0 => "Loss",
+        _ => "Neutral",
+    };
+
     public string Direction => Overview.Direction == TradeDirection.Long ? "Long" : "Short";
 
     public string Side => Overview.Side == ExecutionSide.Open ? "新規" : "決済";

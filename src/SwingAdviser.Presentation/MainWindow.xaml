@@ -150,6 +150,23 @@
                 <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource MahApps.Brushes.Accent}" Text="{Binding ElapsedTimeText}" />
                 <TextBlock Style="{StaticResource MutedText}" Text="{Binding LastUpdatedAtText}" />
             </StackPanel>
+            <TextBlock Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center"
+                       FontSize="18" FontWeight="SemiBold"
+                       Text="{Binding TotalProfitAndLossText}"
+                       ToolTip="{Binding TotalProfitAndLossDetailText}">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding TotalProfitAndLossState}" Value="Profit">
+                                <Setter Property="Foreground" Value="#FF25833D" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding TotalProfitAndLossState}" Value="Loss">
+                                <Setter Property="Foreground" Value="#FFC73535" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
         </Grid>
 
         <StackPanel Grid.Row="1" Margin="0,10,0,0">
@@ -296,7 +313,13 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <DataGrid AutoGenerateColumns="False" IsReadOnly="True"
-                              CanUserAddRows="False" CanUserDeleteRows="False" ItemsSource="{Binding Positions}">
+                              CanUserAddRows="False" CanUserDeleteRows="False" ItemsSource="{Binding Positions}"
+                              ToolTip="行をダブルクリックするとYahoo!ファイナンスのチャートを既定ブラウザで開きます。">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <EventSetter Event="MouseDoubleClick" Handler="CandidateRowDoubleClick" />
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Width="70" Binding="{Binding StockCode}" Header="コード" />
                             <DataGridTextColumn Width="140" Binding="{Binding StockName}" Header="銘柄名" />
@@ -337,11 +360,13 @@
                               CanUserAddRows="False" CanUserDeleteRows="False" ItemsSource="{Binding Executions}">
                         <DataGrid.Columns>
                             <DataGridTextColumn Width="70" Binding="{Binding StockCode}" Header="コード" />
+                            <DataGridTextColumn Width="140" Binding="{Binding StockName}" Header="銘柄名" />
                             <DataGridTextColumn Width="70" Binding="{Binding Direction}" Header="方向" />
                             <DataGridTextColumn Width="70" Binding="{Binding Side}" Header="新規/決済" />
                             <DataGridTextColumn Width="150" Binding="{Binding ExecutedAtJst, StringFormat=yyyy-MM-dd HH:mm}" Header="約定日時（JST）" />
                             <DataGridTextColumn Width="100" Binding="{Binding Price, StringFormat=N1}" Header="約定価格" ElementStyle="{StaticResource RightAlignedGridText}" />
                             <DataGridTextColumn Width="90" Binding="{Binding Quantity, StringFormat=N0}" Header="株数" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="110" Binding="{Binding RealizedProfitAndLoss, StringFormat=N0, TargetNullValue=—}" Header="決済損益" ElementStyle="{StaticResource ProfitAndLossGridText}" />
                             <DataGridTextColumn Width="150" Binding="{Binding MarginDueDateText}" Header="信用返済期限" />
                             <DataGridTextColumn Width="100" Binding="{Binding CorrectionText}" Header="訂正" />
                         </DataGrid.Columns>

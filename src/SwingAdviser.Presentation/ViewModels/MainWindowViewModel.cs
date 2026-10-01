@@ -60,7 +60,30 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public CandidateRow? SelectedCandidate { get => _selectedCandidate; set => Set(ref _selectedCandidate, value); }
 
-    public string Title => "SwingAdviser — 日本株スイング判断支援";
+    private decimal _totalProfitAndLoss;
+    private string _totalProfitAndLossDetailText = string.Empty;
+
+    /// <summary>通算損益（実現＋含み）。画面右上に表示する参考値。</summary>
+    public decimal TotalProfitAndLoss
+    {
+        get => _totalProfitAndLoss;
+        private set
+        {
+            if (Set(ref _totalProfitAndLoss, value))
+            {
+                OnPropertyChanged(nameof(TotalProfitAndLossText));
+                OnPropertyChanged(nameof(TotalProfitAndLossState));
+            }
+        }
+    }
+
+    public string TotalProfitAndLossText => $"通算損益 {TotalProfitAndLoss:+#,##0;-#,##0;0} 円";
+
+    public string TotalProfitAndLossState => TotalProfitAndLoss switch { > 0 => "Profit", < 0 => "Loss", _ => "Flat" };
+
+    public string TotalProfitAndLossDetailText { get => _totalProfitAndLossDetailText; private set => Set(ref _totalProfitAndLossDetailText, value); }
+
+    public string Title =>"SwingAdviser — 日本株スイング判断支援";
 
     public string StatusMessage { get => _statusMessage; private set => Set(ref _statusMessage, value); }
 
@@ -110,6 +133,10 @@ public sealed class MainWindowViewModel : ObservableObject
             var candidates = await _candidateOverviewReader.GetLatestAsync();
             var positions = await _holdingOverviewReader.GetOpenPositionsAsync();
             var executions = await _executionOverviewReader.GetAllAsync();
+            var realized = await _holdingOverviewReader.GetRealizedProfitAndLossAsync();
+            var unrealized = positions.Sum(p => p.CurrentProfitAndLoss ?? 0m);
+            TotalProfitAndLoss = realized + unrealized;
+            TotalProfitAndLossDetailText = $"実現損益 {realized:N0} 円 ＋ 含み損益 {unrealized:N0} 円\n手数料・信用コスト・配当を除く参考値です。正確な損益は証券会社の取引明細を確認してください。";
 
             var selectedKey = SelectedCandidate is { } selected
                 ? (selected.StockCode, selected.Overview.Direction)

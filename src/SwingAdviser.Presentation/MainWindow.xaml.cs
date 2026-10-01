@@ -61,7 +61,7 @@ public partial class MainWindow : MetroWindow
         }
     }
 
-    /// <summary>候補行のダブルクリックでYahoo!ファイナンスのチャートページを既定ブラウザで開く。
+    /// <summary>候補行・保有行のダブルクリックでYahoo!ファイナンスのチャートページを既定ブラウザで開く。
     /// 行内のボタン（実行・約定を手入力）上でのダブルクリックは無視する。</summary>
     private void CandidateRowDoubleClick(object sender, MouseButtonEventArgs e)
     {
@@ -70,12 +70,18 @@ public partial class MainWindow : MetroWindow
             return;
         }
 
-        if ((sender as FrameworkElement)?.DataContext is not CandidateRow candidate)
+        var stockCode = (sender as FrameworkElement)?.DataContext switch
+        {
+            CandidateRow candidate => candidate.StockCode,
+            PositionRow position => position.StockCode,
+            _ => null,
+        };
+        if (stockCode is null)
         {
             return;
         }
 
-        BrowserLauncher.Open(BrowserLauncher.YahooFinanceChartUri(candidate.StockCode));
+        BrowserLauncher.Open(BrowserLauncher.YahooFinanceChartUri(stockCode));
     }
 
     private static T? FindAncestorOrSelf<T>(DependencyObject? element) where T : DependencyObject

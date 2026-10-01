@@ -67,6 +67,29 @@ public class Position
         }
     }
 
+    /// <summary>決済約定ぶんの実現損益（平均取得単価基準、手数料・信用コスト除く参考値）。</summary>
+    public decimal RealizedProfitAndLoss
+    {
+        get
+        {
+            return _executions
+                .Where(e => e.Side == ExecutionSide.Close)
+                .Sum(RealizedProfitAndLossOf);
+        }
+    }
+
+    /// <summary>決済約定1件ぶんの実現損益（平均取得単価基準）。新規約定は0。</summary>
+    public decimal RealizedProfitAndLossOf(Execution execution)
+    {
+        if (execution.Side != ExecutionSide.Close)
+        {
+            return 0m;
+        }
+
+        var sign = Direction == TradeDirection.Long ? 1m : -1m;
+        return sign * (execution.AdjustedPrice - AverageEntryPrice) * execution.AdjustedQuantity;
+    }
+
     /// <summary>最初の新規約定のJST日付。時間ストップ（保有営業日数）の起点に使う。</summary>
     public DateOnly OpenedDate
     {

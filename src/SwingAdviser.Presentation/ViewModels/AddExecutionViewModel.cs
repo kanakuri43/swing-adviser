@@ -54,7 +54,7 @@ public sealed class AddExecutionViewModel : ObservableObject
 
     public string ValidationMessage { get => _validationMessage; set => Set(ref _validationMessage, value); }
 
-    public AddExecutionPreview? Preview { get => _preview; private set => Set(ref _preview, value); }
+    public AddExecutionPreview? Preview { get => _preview; private set { if (Set(ref _preview, value)) { OnPropertyChanged(nameof(PreviewSummary)); } } }
 
     public string PreviewSummary => Preview is null
         ? string.Empty
