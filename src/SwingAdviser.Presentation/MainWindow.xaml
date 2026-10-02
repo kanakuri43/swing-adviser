@@ -369,6 +369,13 @@
                             <DataGridTextColumn Width="110" Binding="{Binding RealizedProfitAndLoss, StringFormat=N0, TargetNullValue=—}" Header="決済損益" ElementStyle="{StaticResource ProfitAndLossGridText}" />
                             <DataGridTextColumn Width="150" Binding="{Binding MarginDueDateText}" Header="信用返済期限" />
                             <DataGridTextColumn Width="100" Binding="{Binding CorrectionText}" Header="訂正" />
+                            <DataGridTemplateColumn Width="90" Header="操作">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Padding="8,3" Click="CorrectExecutionClick" Content="訂正" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                     <TextBlock Grid.Row="2" Margin="0,8,0,0" Style="{StaticResource MutedText}"

@@ -4,7 +4,7 @@ using SwingAdviser.Domain.Positions;
 
 namespace SwingAdviser.Presentation.ViewModels;
 
-/// <summary>履歴タブの1行。約定は監査原票の一覧表示なので読み取り専用（コマンドを持たない）。</summary>
+/// <summary>履歴タブの1行。表示専用（訂正はコードビハインドから訂正ダイアログを開く）。</summary>
 public sealed class ExecutionRow(ExecutionOverview overview)
 {
     public ExecutionOverview Overview { get; } = overview;

@@ -150,4 +150,57 @@ public class PositionTests
         Assert.Throws<InvalidOperationException>(() =>
             position.CorrectExecution(openExecution, 1000m, 50, Opened, "訂正", Opened.AddDays(2)));
     }
+
+    [Fact]
+    public void CorrectExecution_CloseQuantityIncreasedToRemaining_MarksPositionClosed()
+    {
+        var position = CreateLongPosition(quantity: 100);
+        position.AddCloseExecution(Opened.AddDays(1), 1050m, 60, Opened.AddDays(1));
+        var close = Assert.Single(position.Executions, e => e.Side == ExecutionSide.Close);
+
+        position.CorrectExecution(close, 1050m, 100, close.ExecutedAtUtc, "株数入力ミス", Opened.AddDays(2));
+
+        Assert.Equal(0m, position.RemainingQuantity);
+        Assert.Equal(PositionStatus.Closed, position.Status);
+    }
+
+    [Fact]
+    public void CorrectExecution_CloseQuantityReducedOnClosedPosition_ReopensPosition()
+    {
+        var position = CreateLongPosition(quantity: 100);
+        position.AddCloseExecution(Opened.AddDays(1), 1050m, 100, Opened.AddDays(1));
+        var close = Assert.Single(position.Executions, e => e.Side == ExecutionSide.Close);
+
+        position.CorrectExecution(close, 1050m, 40, close.ExecutedAtUtc, "株数入力ミス", Opened.AddDays(2));
+
+        Assert.Equal(60m, position.RemainingQuantity);
+        Assert.Equal(PositionStatus.Open, position.Status);
+    }
+
+    [Fact]
+    public void CorrectExecution_FirstOpenPrice_UpdatesStopLossAndAtrAndLogsChange()
+    {
+        var position = CreateLongPosition(price: 1000m, initialAtr: 30m, stopLossPrice: 910m);
+        var open = Assert.Single(position.Executions);
+
+        position.CorrectExecution(open, 1100m, 100, Opened, "価格入力ミス", Opened.AddMinutes(1), newInitialAtr: 32m, newStopLossPrice: 1004m);
+
+        Assert.Equal(1004m, position.StopLossPrice);
+        Assert.Equal(32m, position.InitialAtr);
+        Assert.Contains("910", Assert.Single(open.CorrectionLog));
+        Assert.Contains("1004", open.CorrectionLog[0]);
+    }
+
+    [Fact]
+    public void CorrectExecution_AdditionalOpenExecution_DoesNotChangeStopLoss()
+    {
+        var position = CreateLongPosition(price: 1000m, initialAtr: 30m, stopLossPrice: 910m);
+        position.AddOpenExecution(Opened.AddDays(1), 1020m, 50, null, Opened.AddDays(1));
+        var additional = position.Executions.Last();
+
+        position.CorrectExecution(additional, 1030m, 50, additional.ExecutedAtUtc, "価格入力ミス", Opened.AddDays(2), newInitialAtr: 99m, newStopLossPrice: 1m);
+
+        Assert.Equal(910m, position.StopLossPrice);
+        Assert.Equal(30m, position.InitialAtr);
+    }
 }

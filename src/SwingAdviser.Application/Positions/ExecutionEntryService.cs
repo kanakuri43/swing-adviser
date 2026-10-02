@@ -3,6 +3,7 @@ using SwingAdviser.Application.Common;
 using SwingAdviser.Application.MarketData;
 using SwingAdviser.Domain.Analysis;
 using SwingAdviser.Domain.Common;
+using SwingAdviser.Domain.MarketData;
 using SwingAdviser.Domain.Positions;
 using SwingAdviser.Domain.Strategy;
 using SwingAdviser.Infrastructure.Persistence;
@@ -42,6 +43,26 @@ public sealed record AddExecutionPreview(
     bool WillFullyClose,
     IReadOnlyList<string> Warnings);
 
+/// <summary>入力ミスの訂正。価格・株数・日時は元約定の値（分割調整前）で指定する。</summary>
+public sealed record CorrectExecutionInput(
+    long PositionId,
+    long ExecutionId,
+    DateTime ExecutedAtJst,
+    decimal Price,
+    int Quantity,
+    DateOnly? MarginDueDate,
+    string Reason);
+
+/// <summary>NewStopLossPrice / NewInitialAtr は最初の新規約定の価格・日時を訂正したときだけ入る。</summary>
+public sealed record CorrectExecutionPreview(
+    CorrectExecutionInput Input,
+    decimal RemainingQuantityAfter,
+    PositionStatus StatusAfter,
+    decimal CurrentStopLossPrice,
+    decimal? NewStopLossPrice,
+    decimal? NewInitialAtr,
+    IReadOnlyList<string> Warnings);
+
 /// <summary>
 /// 約定の手入力ユースケース。プレビュー（未保存）→利用者確認→確定（保存）の2段構成にする。
 /// 候補一覧からボタン1回で約定確定まで行うUIは作らない（CLAUDE.md「Non-negotiable rules」）。
@@ -61,29 +82,8 @@ public sealed class ExecutionEntryService(
         // 流動性フィルタ外の銘柄でも新規建て時にATRを正しく出せるよう、その場で日足を同期する。
         await dailyBarSynchronizer.SyncAsync(input.StockCode, cancellationToken).ConfigureAwait(false);
 
-        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-
-        // 約定日「より前」のバーだけでATRを計算する（約定当日の高値・安値は約定時点では未確定のため）。
-        var priorTradeDate = DateOnly.FromDateTime(input.ExecutedAtJst).AddDays(-1);
-        var bars = await BarRepository.LoadBarsAsOfAsync(
-            context, input.StockCode, priorTradeDate, strategyParameters.AnalysisWindow.BarsToFetch, cancellationToken).ConfigureAwait(false);
-
-        var atrPeriod = strategyParameters.Indicators.AtrPeriod;
-        if (bars.Count < atrPeriod + 1)
-        {
-            throw new InvalidOperationException(
-                $"{input.StockCode}: ATR計算に必要な日足（約定日より前に{atrPeriod + 1}本）が不足しています。");
-        }
-
-        var atrSeries = TechnicalIndicators.AtrWilder(bars, atrPeriod);
-        var atr = atrSeries[^1];
-        var referenceBar = bars[^1];
-
-        var stopLossMultiple = input.Direction == TradeDirection.Long
-            ? strategyParameters.Risk.LongStopLossAtrMultiple
-            : strategyParameters.Risk.ShortStopLossAtrMultiple;
-        var sign = input.Direction == TradeDirection.Long ? 1m : -1m;
-        var stopLossPrice = input.Price - (sign * stopLossMultiple * atr);
+        var (atr, referenceBar, stopLossPrice) = await ComputeStopLossAsync(
+            input.StockCode, input.Direction, input.Price, input.ExecutedAtJst, cancellationToken).ConfigureAwait(false);
 
         var warnings = new List<string>();
         if (input.IsMargin && input.MarginDueDate is null)
@@ -92,6 +92,35 @@ public sealed class ExecutionEntryService(
         }
 
         return new OpenPositionPreview(input, atr, referenceBar.TradeDate, stopLossPrice, referenceBar.Close, referenceBar.TradeDate, warnings);
+    }
+
+    /// <summary>
+    /// 約定日「より前」のバーだけでATR14を計算し、損切ラインを求める（約定当日の高値・安値は約定時点では未確定のため）。
+    /// 日足は現在基準に換算済みなので、<paramref name="adjustedPrice"/> も分割調整後の価格を渡す。
+    /// </summary>
+    private async Task<(decimal Atr, DailyBar ReferenceBar, decimal StopLossPrice)> ComputeStopLossAsync(
+        string stockCode, TradeDirection direction, decimal adjustedPrice, DateTime executedAtJst, CancellationToken cancellationToken)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        var priorTradeDate = DateOnly.FromDateTime(executedAtJst).AddDays(-1);
+        var bars = await BarRepository.LoadBarsAsOfAsync(
+            context, stockCode, priorTradeDate, strategyParameters.AnalysisWindow.BarsToFetch, cancellationToken).ConfigureAwait(false);
+
+        var atrPeriod = strategyParameters.Indicators.AtrPeriod;
+        if (bars.Count < atrPeriod + 1)
+        {
+            throw new InvalidOperationException(
+                $"{stockCode}: ATR計算に必要な日足（約定日より前に{atrPeriod + 1}本）が不足しています。");
+        }
+
+        var atr = TechnicalIndicators.AtrWilder(bars, atrPeriod)[^1];
+
+        var stopLossMultiple = direction == TradeDirection.Long
+            ? strategyParameters.Risk.LongStopLossAtrMultiple
+            : strategyParameters.Risk.ShortStopLossAtrMultiple;
+        var sign = direction == TradeDirection.Long ? 1m : -1m;
+        return (atr, bars[^1], adjustedPrice - (sign * stopLossMultiple * atr));
     }
 
     public async Task<long> ConfirmOpenPositionAsync(OpenPositionPreview preview, CancellationToken cancellationToken = default)
@@ -191,15 +220,87 @@ public sealed class ExecutionEntryService(
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task CorrectExecutionAsync(
-        long positionId, long executionId, decimal price, int quantity, DateTime executedAtJst, string reason,
-        CancellationToken cancellationToken = default)
+    public async Task<CorrectExecutionPreview> PreviewCorrectExecutionAsync(
+        CorrectExecutionInput input, CancellationToken cancellationToken = default)
     {
-        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var position = await LoadPositionAsync(context, positionId, cancellationToken).ConfigureAwait(false);
-        var execution = FindExecution(position, executionId);
+        if (string.IsNullOrWhiteSpace(input.Reason))
+        {
+            throw new ArgumentException("訂正には理由が必要です。", nameof(input));
+        }
 
-        position.CorrectExecution(execution, price, quantity, Jst.ToUtc(executedAtJst), reason, timeProvider.GetUtcNow().UtcDateTime);
+        if (input.Price <= 0)
+        {
+            throw new ArgumentException("価格は正の値である必要があります。", nameof(input));
+        }
+
+        if (input.Quantity <= 0)
+        {
+            throw new ArgumentException("株数は正の値である必要があります。", nameof(input));
+        }
+
+        EnsureNotFuture(input.ExecutedAtJst);
+
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var position = await LoadPositionAsync(context, input.PositionId, cancellationToken).ConfigureAwait(false);
+        var execution = FindExecution(position, input.ExecutionId);
+
+        var remainingAfter = position.RemainingQuantityAfterCorrection(execution, input.Quantity);
+        if (remainingAfter < 0)
+        {
+            throw new InvalidOperationException("訂正後の株数がポジションの残株数を超えます。");
+        }
+
+        var warnings = new List<string>();
+        decimal? newAtr = null;
+        decimal? newStopLoss = null;
+
+        var priceOrDateChanged = input.Price != execution.Price || Jst.ToUtc(input.ExecutedAtJst) != execution.ExecutedAtUtc;
+        if (execution.Side == ExecutionSide.Open && position.IsFirstOpenExecution(execution) && priceOrDateChanged)
+        {
+            // 日足は現在基準に換算済み、損切ラインも調整後の単位で保持しているので、価格を調整後に揃えて再計算する。
+            await dailyBarSynchronizer.SyncAsync(position.StockCode, cancellationToken).ConfigureAwait(false);
+            var (atr, _, stopLoss) = await ComputeStopLossAsync(
+                position.StockCode, position.Direction, input.Price / execution.SplitFactor, input.ExecutedAtJst, cancellationToken).ConfigureAwait(false);
+            newAtr = atr;
+            newStopLoss = stopLoss;
+        }
+
+        if (position.IsMargin && execution.Side == ExecutionSide.Open && input.MarginDueDate is null && execution.MarginDueDate is null)
+        {
+            warnings.Add("信用返済期限が未入力です。保存後も「未確認」のままです。");
+        }
+
+        var statusAfter = remainingAfter == 0 ? PositionStatus.Closed : PositionStatus.Open;
+        if (statusAfter != position.Status)
+        {
+            warnings.Add(statusAfter == PositionStatus.Closed
+                ? "訂正により残株数が0になり、ポジションは「決済済み」になります。"
+                : "訂正により残株が生じ、ポジションは「保有中」に戻ります。");
+        }
+
+        return new CorrectExecutionPreview(input, remainingAfter, statusAfter, position.StopLossPrice, newStopLoss, newAtr, warnings);
+    }
+
+    public async Task ConfirmCorrectExecutionAsync(CorrectExecutionPreview preview, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(preview);
+        var input = preview.Input;
+        var nowUtc = timeProvider.GetUtcNow().UtcDateTime;
+
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var position = await LoadPositionAsync(context, input.PositionId, cancellationToken).ConfigureAwait(false);
+        var execution = FindExecution(position, input.ExecutionId);
+
+        position.CorrectExecution(
+            execution, input.Price, input.Quantity, Jst.ToUtc(input.ExecutedAtJst), input.Reason, nowUtc,
+            preview.NewInitialAtr, preview.NewStopLossPrice);
+
+        if (input.MarginDueDate.HasValue && position.IsMargin && execution.Side == ExecutionSide.Open
+            && input.MarginDueDate != execution.MarginDueDate)
+        {
+            position.SetMarginDueDate(execution, input.MarginDueDate.Value, nowUtc);
+        }
+
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 

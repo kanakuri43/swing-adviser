@@ -61,6 +61,20 @@ public partial class MainWindow : MetroWindow
         }
     }
 
+    private async void CorrectExecutionClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not ExecutionRow execution)
+        {
+            return;
+        }
+
+        var result = new CorrectExecutionWindow(_executionEntryService, execution.Overview) { Owner = this }.ShowDialog();
+        if (result == true)
+        {
+            await _viewModel.ReloadDisplayDataAsync();
+        }
+    }
+
     /// <summary>候補行・保有行のダブルクリックでYahoo!ファイナンスのチャートページを既定ブラウザで開く。
     /// 行内のボタン（実行・約定を手入力）上でのダブルクリックは無視する。</summary>
     private void CandidateRowDoubleClick(object sender, MouseButtonEventArgs e)

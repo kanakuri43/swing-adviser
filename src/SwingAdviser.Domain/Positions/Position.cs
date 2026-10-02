@@ -190,25 +190,61 @@ public class Position
         UpdatedAtUtc = nowUtc;
     }
 
-    /// <summary>入力ミスの訂正。理由は必須で、CorrectionLogに追記するのみ（revisionチェーンは作らない）。</summary>
-    public void CorrectExecution(Execution execution, decimal price, int quantity, DateTime executedAtUtc, string reason, DateTime nowUtc)
+    /// <summary>最初の新規約定か（損切ライン・ATRの算出根拠になった約定）。</summary>
+    public bool IsFirstOpenExecution(Execution execution)
+    {
+        var first = _executions
+            .Where(e => e.Side == ExecutionSide.Open)
+            .OrderBy(e => e.ExecutedAtUtc)
+            .ThenBy(e => e.Id)
+            .FirstOrDefault();
+        return ReferenceEquals(first, execution);
+    }
+
+    /// <summary>約定の株数を <paramref name="quantity"/> に訂正した場合の残株数。負なら訂正できない。</summary>
+    public decimal RemainingQuantityAfterCorrection(Execution execution, int quantity)
     {
         if (!_executions.Contains(execution))
         {
             throw new InvalidOperationException("このポジションに属さない約定です。");
         }
 
-        var hypotheticalAdjustedQuantity = quantity * execution.SplitFactor;
+        var newAdjustedQuantity = quantity * execution.SplitFactor;
         var delta = execution.Side == ExecutionSide.Open
-            ? hypotheticalAdjustedQuantity - execution.AdjustedQuantity
-            : execution.AdjustedQuantity - hypotheticalAdjustedQuantity;
+            ? newAdjustedQuantity - execution.AdjustedQuantity
+            : execution.AdjustedQuantity - newAdjustedQuantity;
+        return RemainingQuantity + delta;
+    }
 
-        if (RemainingQuantity + delta < 0)
+    /// <summary>
+    /// 入力ミスの訂正。理由は必須で、CorrectionLogに追記するのみ（revisionチェーンは作らない）。
+    /// 訂正後の残株数に合わせて状態（保有中/決済済み）を再判定する。
+    /// 最初の新規約定の価格・日時を訂正したときは、呼び出し側が再計算した <paramref name="newInitialAtr"/> と
+    /// <paramref name="newStopLossPrice"/>（分割調整後の単位）で損切ラインを更新し、変更前後をログに残す。
+    /// </summary>
+    public void CorrectExecution(
+        Execution execution, decimal price, int quantity, DateTime executedAtUtc, string reason, DateTime nowUtc,
+        decimal? newInitialAtr = null, decimal? newStopLossPrice = null)
+    {
+        if (RemainingQuantityAfterCorrection(execution, quantity) < 0)
         {
             throw new InvalidOperationException("訂正後の株数がポジションの残株数を超えます。");
         }
 
-        execution.Correct(price, quantity, executedAtUtc, reason, nowUtc);
+        var stopLossChanged = newInitialAtr.HasValue && newStopLossPrice.HasValue && IsFirstOpenExecution(execution);
+        var loggedReason = stopLossChanged
+            ? $"{reason}（損切ライン {StopLossPrice:0.##} → {newStopLossPrice!.Value:0.##}）"
+            : reason;
+
+        execution.Correct(price, quantity, executedAtUtc, loggedReason, nowUtc);
+
+        if (stopLossChanged)
+        {
+            InitialAtr = newInitialAtr!.Value;
+            StopLossPrice = newStopLossPrice!.Value;
+        }
+
+        Status = RemainingQuantity == 0 ? PositionStatus.Closed : PositionStatus.Open;
         UpdatedAtUtc = nowUtc;
     }
 
