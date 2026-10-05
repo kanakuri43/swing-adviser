@@ -40,6 +40,19 @@ public sealed record CandidateOverview(
 /// </summary>
 public sealed class CandidateOverviewReader(IDbContextFactory<SwingAdviserDbContext> contextFactory, StrategyParameters strategyParameters)
 {
+    /// <summary>直近の日次更新（候補抽出・保有再評価）の実行日時。起動し直しても表示できるよう判定行の作成日時から求める。未実行ならnull。</summary>
+    public async Task<DateTime?> GetLastUpdatedAtUtcAsync(CancellationToken cancellationToken = default)
+    {
+        await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        var candidateAt = await context.CandidateEvaluations
+            .MaxAsync(c => (DateTime?)c.CreatedAtUtc, cancellationToken).ConfigureAwait(false);
+        var holdingAt = await context.HoldingEvaluations
+            .MaxAsync(h => (DateTime?)h.CreatedAtUtc, cancellationToken).ConfigureAwait(false);
+
+        return candidateAt is null ? holdingAt : holdingAt is null ? candidateAt : DateTime.Compare(candidateAt.Value, holdingAt.Value) >= 0 ? candidateAt : holdingAt;
+    }
+
     public async Task<IReadOnlyList<CandidateOverview>> GetLatestAsync(CancellationToken cancellationToken = default)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);

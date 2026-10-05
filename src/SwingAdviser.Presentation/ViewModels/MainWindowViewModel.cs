@@ -133,6 +133,11 @@ public sealed class MainWindowViewModel : ObservableObject
             var candidates = await _candidateOverviewReader.GetLatestAsync();
             var positions = await _holdingOverviewReader.GetOpenPositionsAsync();
             var executions = await _executionOverviewReader.GetAllAsync();
+            if (await _candidateOverviewReader.GetLastUpdatedAtUtcAsync() is { } lastUpdatedAtUtc)
+            {
+                LastUpdatedAtText = $"最終更新日時（JST）: {Jst.ToJst(lastUpdatedAtUtc):yyyy-MM-dd HH:mm}";
+            }
+
             var realized = await _holdingOverviewReader.GetRealizedProfitAndLossAsync();
             var unrealized = positions.Sum(p => p.CurrentProfitAndLoss ?? 0m);
             TotalProfitAndLoss = realized + unrealized;
@@ -205,7 +210,6 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             var progress = new Progress<DailyUpdateProgress>(OnDailyUpdateProgress);
             result = await _dailyUpdateService.RunAsync(progress, cancellationToken);
-            LastUpdatedAtText = $"最終更新日時（JST）: {Jst.ToJst(DateTime.UtcNow):yyyy-MM-dd HH:mm}";
             await ReloadDisplayDataAsync();
 
             var candidates = await _candidateOverviewReader.GetLatestAsync(cancellationToken);

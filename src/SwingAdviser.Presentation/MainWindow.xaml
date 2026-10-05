@@ -326,7 +326,8 @@
                             <DataGridTextColumn Width="70" Binding="{Binding Direction}" Header="方向" />
                             <DataGridTextColumn Width="90" Binding="{Binding RemainingQuantity, StringFormat=N0}" Header="残数量" ElementStyle="{StaticResource RightAlignedGridText}" />
                             <DataGridTextColumn Width="100" Binding="{Binding AverageEntryPrice, StringFormat=N1}" Header="取得単価" ElementStyle="{StaticResource RightAlignedGridText}" />
-                            <DataGridTextColumn Width="100" Binding="{Binding LatestClose, StringFormat=N1}" Header="現在値" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="100" Binding="{Binding LatestClose, StringFormat=N1}" Header="現在値(終値)" ElementStyle="{StaticResource RightAlignedGridText}" />
+                            <DataGridTextColumn Width="70" Binding="{Binding LatestCloseDateText}" Header="終値日" ElementStyle="{StaticResource RightAlignedGridText}" />
                             <DataGridTextColumn Width="110" Binding="{Binding CurrentProfitAndLoss, StringFormat=N0}" Header="現在損益" ElementStyle="{StaticResource ProfitAndLossGridText}" />
                             <DataGridTextColumn Width="110" Binding="{Binding DecisionText}" Header="決済判定" />
                             <DataGridTextColumn Width="260" Binding="{Binding DecisionReason}" Header="判定根拠" />

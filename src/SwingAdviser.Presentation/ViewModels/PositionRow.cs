@@ -27,6 +27,8 @@ public sealed class PositionRow(HoldingOverview overview)
 
     public decimal? LatestClose => Overview.LatestClose;
 
+    public string LatestCloseDateText => Overview.LatestCloseDate?.ToString("MM/dd") ?? string.Empty;
+
     public decimal? CurrentProfitAndLoss => Overview.CurrentProfitAndLoss;
 
     public string ProfitAndLossState => Overview.CurrentProfitAndLoss switch
