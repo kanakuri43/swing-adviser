@@ -72,6 +72,10 @@
                     <Setter Property="Background" Value="#1AC73535" />
                     <Setter Property="BorderBrush" Value="#FFC73535" />
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                    <Setter Property="Background" Value="#33FFFFFF" />
+                    <Setter Property="BorderBrush" Value="White" />
+                </DataTrigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="DirectionBadgeText" TargetType="TextBlock">
@@ -81,6 +85,9 @@
             <Style.Triggers>
                 <DataTrigger Binding="{Binding Direction}" Value="Short">
                     <Setter Property="Foreground" Value="#FFC73535" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                    <Setter Property="Foreground" Value="White" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -104,6 +111,10 @@
                     <Setter Property="Background" Value="#1A9B6B00" />
                     <Setter Property="BorderBrush" Value="#FF9B6B00" />
                 </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                    <Setter Property="Background" Value="#33FFFFFF" />
+                    <Setter Property="BorderBrush" Value="White" />
+                </DataTrigger>
             </Style.Triggers>
         </Style>
         <Style x:Key="AiVerdictBadgeText" TargetType="TextBlock">
@@ -119,6 +130,9 @@
                 </DataTrigger>
                 <DataTrigger Binding="{Binding AiVerdictName}" Value="Neutral">
                     <Setter Property="Foreground" Value="#FF9B6B00" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                    <Setter Property="Foreground" Value="White" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>

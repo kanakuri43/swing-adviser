@@ -17,7 +17,10 @@ public sealed class OpenPositionViewModel : ObservableObject
     private DateTime? _executedAtJst;
     private string _priceText = string.Empty;
     private string _quantityText = string.Empty;
+    private const int MarginDueMonths = 6;
+
     private DateTime? _marginDueDate;
+    private DateTime? _defaultMarginDueDate;
     private string? _memo;
     private string _validationMessage = string.Empty;
     private OpenPositionPreview? _preview;
@@ -27,8 +30,7 @@ public sealed class OpenPositionViewModel : ObservableObject
         _executionEntryService = executionEntryService;
         _stockCode = stockCode ?? string.Empty;
         _directionText = direction == TradeDirection.Short ? "Short" : "Long";
-        _isMargin = _directionText == "Short";
-    }
+        _isMargin = _directionText == "Short";    }
 
     public string StockCode { get => _stockCode; set => Set(ref _stockCode, value); }
 
@@ -46,7 +48,29 @@ public sealed class OpenPositionViewModel : ObservableObject
 
     public bool IsMargin { get => _isMargin; set => Set(ref _isMargin, value); }
 
-    public DateTime? ExecutedAtJst { get => _executedAtJst; set => Set(ref _executedAtJst, value); }
+    public DateTime? ExecutedAtJst
+    {
+        get => _executedAtJst;
+        set
+        {
+            if (Set(ref _executedAtJst, value))
+            {
+                ApplyDefaultMarginDueDate();
+            }
+        }
+    }
+
+    /// <summary>信用返済期限の既定値（約定日の6か月後）。利用者が手で変えた日付は上書きしない。</summary>
+    private void ApplyDefaultMarginDueDate()
+    {
+        if (_executedAtJst is not { } executedAt || (MarginDueDate is not null && MarginDueDate != _defaultMarginDueDate))
+        {
+            return;
+        }
+
+        _defaultMarginDueDate = executedAt.Date.AddMonths(MarginDueMonths);
+        MarginDueDate = _defaultMarginDueDate;
+    }
 
     public string PriceText { get => _priceText; set => Set(ref _priceText, value); }
 
