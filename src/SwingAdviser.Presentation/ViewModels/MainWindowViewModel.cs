@@ -21,6 +21,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly CandidateOverviewReader _candidateOverviewReader;
     private readonly HoldingOverviewReader _holdingOverviewReader;
     private readonly ExecutionOverviewReader _executionOverviewReader;
+    private readonly ProfitAndLossHistoryReader _profitAndLossHistoryReader;
     private readonly SemaphoreSlim _reloadGate = new(1, 1);
 
     private string _statusMessage = "起動しました。「日次更新」で株価取得・候補抽出・保有再評価を実行できます。";
@@ -37,8 +38,10 @@ public sealed class MainWindowViewModel : ObservableObject
         AiEvaluationService aiEvaluationService,
         CandidateOverviewReader candidateOverviewReader,
         HoldingOverviewReader holdingOverviewReader,
-        ExecutionOverviewReader executionOverviewReader)
+        ExecutionOverviewReader executionOverviewReader,
+        ProfitAndLossHistoryReader profitAndLossHistoryReader)
     {
+        _profitAndLossHistoryReader = profitAndLossHistoryReader;
         _dailyUpdateService = dailyUpdateService;
         _aiEvaluationService = aiEvaluationService;
         _candidateOverviewReader = candidateOverviewReader;
@@ -55,6 +58,9 @@ public sealed class MainWindowViewModel : ObservableObject
     public ObservableCollection<PositionRow> Positions { get; } = [];
 
     public ObservableCollection<ExecutionRow> Executions { get; } = [];
+
+    /// <summary>損益タブのグラフ用。日次の実現累計・通算損益（参考値）。</summary>
+    public ProfitAndLossChartModel ProfitAndLossChart { get; } = new();
 
     private CandidateRow? _selectedCandidate;
 
@@ -137,6 +143,8 @@ public sealed class MainWindowViewModel : ObservableObject
             {
                 LastUpdatedAtText = $"最終更新日時（JST）: {Jst.ToJst(lastUpdatedAtUtc):yyyy-MM-dd HH:mm}";
             }
+
+            ProfitAndLossChart.Update(await _profitAndLossHistoryReader.GetDailyAsync());
 
             var realized = await _holdingOverviewReader.GetRealizedProfitAndLossAsync();
             var unrealized = positions.Sum(p => p.CurrentProfitAndLoss ?? 0m);

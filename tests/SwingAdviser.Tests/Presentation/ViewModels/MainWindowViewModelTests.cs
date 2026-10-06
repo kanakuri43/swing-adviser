@@ -122,7 +122,8 @@ public class MainWindowViewModelTests
             aiEvaluationService,
             new CandidateOverviewReader(contextFactory, strategyParameters),
             new HoldingOverviewReader(contextFactory, strategyParameters, timeProvider),
-            new ExecutionOverviewReader(contextFactory));
+            new ExecutionOverviewReader(contextFactory),
+            new ProfitAndLossHistoryReader(contextFactory));
     }
 
     [Fact]

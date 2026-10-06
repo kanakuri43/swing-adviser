@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SwingAdviser.Presentation"
         xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+        xmlns:oxy="http://oxyplot.org/wpf"
         mc:Ignorable="d"
         Title="{Binding Title}" Height="700" Width="1200"
         WindowStartupLocation="CenterScreen">
@@ -395,6 +396,21 @@
                     </DataGrid>
                     <TextBlock Grid.Row="2" Margin="0,8,0,0" Style="{StaticResource MutedText}"
                                Text="約定履歴は利用者が明示的に入力・確認して登録する監査原票です。BUY/SELLサイン・現在値・AI判定から自動生成しません。" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="損益">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <oxy:PlotView Model="{Binding ProfitAndLossChart.PlotModel}" />
+                    <TextBlock Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Style="{StaticResource MutedText}" Text="約定がまだ登録されていません。"
+                               Visibility="{Binding ProfitAndLossChart.HasNoData, Converter={StaticResource BoolToVis}}" />
+                    <TextBlock Grid.Row="1" Margin="0,8,0,0" Style="{StaticResource MutedText}"
+                               Text="日次の終値で評価した参考値です。手数料・信用コスト・配当を除きます。正確な損益は証券会社の取引明細を確認してください。" />
                 </Grid>
             </TabItem>
         </TabControl>

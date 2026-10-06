@@ -74,6 +74,7 @@ public partial class App : System.Windows.Application
             services.AddSingleton<CandidateOverviewReader>();
             services.AddSingleton<HoldingOverviewReader>();
             services.AddSingleton<ExecutionOverviewReader>();
+            services.AddSingleton<ProfitAndLossHistoryReader>();
 
             services.AddTransient<MainWindowViewModel>();
             services.AddTransient<MainWindow>();
