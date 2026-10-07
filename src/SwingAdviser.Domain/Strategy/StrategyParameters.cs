@@ -37,6 +37,12 @@ public sealed class GateParameters
     /// これを超える乖離はクロスまで遠すぎるとみなし早期シグナル扱いしない。
     /// </summary>
     public decimal EarlySignalMaxGapAtrMultiple { get; init; }
+
+    /// <summary>
+    /// Short の新規候補を出すか。バックテスト（2022-08〜2026-10）で全期間・前半後半ともマイナスだったため既定は false。
+    /// 保有中の Short ポジションの再評価には影響しない。
+    /// </summary>
+    public bool ShortCandidatesEnabled { get; init; }
 }
 
 public sealed class ScoringParameters

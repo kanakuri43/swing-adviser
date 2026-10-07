@@ -14,3 +14,8 @@ appsettings.*.json
 
 .env
 .env.*
+
+# バックテストのキャッシュ・出力
+backtest-cache/
+backtest-output/
+backtest-*.log

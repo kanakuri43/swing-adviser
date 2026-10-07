@@ -77,6 +77,42 @@ public class CandidateScannerTests
     }
 
     [Fact]
+    public void Evaluate_ShortCandidatesDisabled_ReturnsNoShortCandidate_ButLongIsUnaffected()
+    {
+        var enabled = TestStrategyParameters();
+        var disabled = new StrategyParameters
+        {
+            Indicators = enabled.Indicators,
+            Gates = new GateParameters
+            {
+                MacdCrossMaxAgeDays = enabled.Gates.MacdCrossMaxAgeDays,
+                TrendSlopeLookbackDays = enabled.Gates.TrendSlopeLookbackDays,
+                OverextendedAtrMultiple = enabled.Gates.OverextendedAtrMultiple,
+                MarketRegimeSymbol = enabled.Gates.MarketRegimeSymbol,
+                EarlySignalMinRisingDays = enabled.Gates.EarlySignalMinRisingDays,
+                EarlySignalMaxGapAtrMultiple = enabled.Gates.EarlySignalMaxGapAtrMultiple,
+                ShortCandidatesEnabled = false,
+            },
+            Scoring = enabled.Scoring,
+            Risk = enabled.Risk,
+            AnalysisWindow = enabled.AnalysisWindow,
+        };
+        var stockBars = BuildTrendWithPullbackAndRecovery("7203");
+        var regimeBars = BuildTrendWithPullbackAndRecovery("1306");
+        var crossIndex = FindFreshGoldenCrossIndex(stockBars, enabled);
+        var longBars = stockBars.Take(crossIndex + 1).ToList();
+        var longRegime = regimeBars.Take(crossIndex + 1).ToList();
+        var shortBars = TestFixtures.Reflect(longBars, "7203", 100_000m);
+        var shortRegime = TestFixtures.Reflect(longRegime, "1306", 100_000m);
+
+        var scanner = new CandidateScanner(disabled);
+
+        Assert.Single(scanner.Evaluate("7203", longBars, longRegime, NowUtc));
+        Assert.Empty(scanner.Evaluate("7203", shortBars, shortRegime, NowUtc));
+        Assert.Single(new CandidateScanner(enabled).Evaluate("7203", shortBars, shortRegime, NowUtc));
+    }
+
+    [Fact]
     public void Evaluate_Overextended_RejectsCandidate()
     {
         var parameters = TestStrategyParameters();

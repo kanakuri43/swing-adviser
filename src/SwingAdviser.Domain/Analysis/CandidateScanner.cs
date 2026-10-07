@@ -64,6 +64,11 @@ public sealed class CandidateScanner
 
         foreach (var direction in new[] { TradeDirection.Long, TradeDirection.Short })
         {
+            if (direction == TradeDirection.Short && !gates.ShortCandidatesEnabled)
+            {
+                continue;
+            }
+
             var sign = direction == TradeDirection.Long ? 1m : -1m;
 
             var crossAgeDays = FindDirectionalCrossAge(sign, macd.Line, macd.Signal, todayIndex);

@@ -5,6 +5,9 @@
     <Project Path="src/SwingAdviser.Infrastructure/SwingAdviser.Infrastructure.csproj" />
     <Project Path="src/SwingAdviser.Presentation/SwingAdviser.Presentation.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/SwingAdviser.Backtest/SwingAdviser.Backtest.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SwingAdviser.Tests/SwingAdviser.Tests.csproj" />
   </Folder>

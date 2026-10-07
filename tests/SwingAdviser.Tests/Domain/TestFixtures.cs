@@ -27,6 +27,7 @@ public static class TestFixtures
             MarketRegimeSymbol = "1306",
             EarlySignalMinRisingDays = 2,
             EarlySignalMaxGapAtrMultiple = 0.5m,
+            ShortCandidatesEnabled = true,
         },
         Scoring = new ScoringParameters
         {

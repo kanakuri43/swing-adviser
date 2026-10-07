@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\src\SwingAdviser.Application\SwingAdviser.Application.csproj" />
     <ProjectReference Include="..\..\src\SwingAdviser.Infrastructure\SwingAdviser.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\SwingAdviser.Presentation\SwingAdviser.Presentation.csproj" />
+    <ProjectReference Include="..\..\tools\SwingAdviser.Backtest\SwingAdviser.Backtest.csproj" />
   </ItemGroup>
 
 </Project>

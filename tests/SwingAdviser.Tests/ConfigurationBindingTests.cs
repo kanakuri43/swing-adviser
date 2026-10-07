@@ -34,6 +34,7 @@ public class ConfigurationBindingTests
         Assert.Equal(70, parameters.Scoring.HighConfidenceThreshold);
         Assert.Equal(3.0m, parameters.Risk.LongStopLossAtrMultiple);
         Assert.Equal(250, parameters.AnalysisWindow.BarsToFetch);
+        Assert.False(parameters.Gates.ShortCandidatesEnabled);
     }
 
     [Fact]
